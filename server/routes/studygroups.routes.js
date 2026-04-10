@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const { protect } = require('../middleware/auth.middleware');
+const { createGroup, getGroups, getMyGroups, joinGroup, sendMessage, getGroup } = require('../controllers/studygroups.controller');
+router.get('/', protect, getGroups);
+router.get('/mine', protect, getMyGroups);
+router.get('/:id', protect, getGroup);
+router.post('/', protect, createGroup);
+router.post('/:id/join', protect, joinGroup);
+router.post('/:id/messages', protect, sendMessage);
+module.exports = router;

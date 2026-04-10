@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const { protect } = require('../middleware/auth.middleware');
+const { chat, analyzeResume, getResumeAnalysis, getJobRecommendations, getForumSuggestion, getSkillGap, getInterviewQuestions, resumeUpload } = require('../controllers/ai.controller');
+router.post('/chat', protect, chat);
+router.post('/resume/analyze', protect, resumeUpload.single('resume'), analyzeResume);
+router.get('/resume', protect, getResumeAnalysis);
+router.get('/jobs', protect, getJobRecommendations);
+router.get('/forum/:postId/suggest', protect, getForumSuggestion);
+router.get('/skill-gap', protect, getSkillGap);
+router.get('/interview-questions', protect, getInterviewQuestions);
+module.exports = router;
