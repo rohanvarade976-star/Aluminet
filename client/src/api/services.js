@@ -65,7 +65,7 @@ export const verificationApi = {
 
 export const aiApi = {
   chat: (message, history) => api.post('/ai/chat', { message, history }),
-  analyzeResume: (fd) => api.post('/ai/resume/analyze', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  analyzeResume: (fd) => api.post('/ai/resume/analyze', fd),
   getResumeAnalysis: () => api.get('/ai/resume'),
   getJobRecs: () => api.get('/ai/jobs'),
   getForumSuggestion: (postId) => api.get(`/ai/forum/${postId}/suggest`),

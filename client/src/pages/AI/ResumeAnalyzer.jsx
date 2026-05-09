@@ -20,7 +20,7 @@ export default function ResumeAnalyzer() {
     const form = new FormData();
     form.append('resume', file);
     try {
-      const { data } = await api.post('/ai/resume/analyze', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post('/ai/resume/analyze', form);
       setAnalysis(data.analysis);
     } catch (err) { alert(err.response?.data?.error || 'Analysis failed'); }
     finally { setLoading(false); }

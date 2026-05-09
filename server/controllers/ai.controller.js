@@ -5,6 +5,7 @@ const ResumeAnalysis = require('../models/ResumeAnalysis');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -59,7 +60,17 @@ exports.analyzeResume = async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     let resumeText = '';
-    try { resumeText = fs.readFileSync(req.file.path, 'utf-8').substring(0, 4000); } catch { resumeText = ''; }
+    try {
+      if (req.file.mimetype === 'application/pdf') {
+        const pdfBuffer = require('fs').readFileSync(req.file.path); const pdfData = await pdfParse(pdfBuffer);
+        resumeText = (pdfData.text || '').substring(0, 4000);
+      } else {
+        resumeText = fs.readFileSync(req.file.path, 'utf-8').substring(0, 4000);
+      }
+    } catch (parseErr) {
+      console.warn('Resume parse warning:', parseErr.message);
+      resumeText = '';
+    }
 
     const messages = [
       { role: 'system', content: 'You are an expert resume reviewer and career coach. Return ONLY valid JSON, no markdown, no explanation.' },
@@ -85,7 +96,7 @@ ${resumeText || 'No text could be extracted from this file.'}` }
     try { fs.unlinkSync(req.file.path); } catch {}
     const saved = await ResumeAnalysis.findOneAndUpdate(
       { user: req.user._id },
-      { user: req.user._id, resumeUrl: req.file.filename, analysis },
+      { user: req.user._id, resumeUrl: req.file.filename, resumeText, analysis },
       { upsert: true, new: true }
     );
     res.json({ analysis: saved.analysis });

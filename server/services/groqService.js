@@ -21,7 +21,7 @@ const chat = async (messages, options = {}) => {
 };
 
 const jsonChat = async (messages, options = {}) => {
-  const text = await chat(messages, { ...options, model: 'mixtral-8x7b-32768' });
+  const text = await chat(messages, { ...options, model: 'llama-3.3-70b-versatile' });
   // Strip markdown code blocks if present
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   try {
