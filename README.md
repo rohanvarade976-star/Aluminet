@@ -151,34 +151,4 @@ Rule-based heuristic scoring:
 
 ---
 
-## 🌐 Free Deployment Guide
 
-### Deploy Backend to Railway
-1. Push code to GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Select the `server/` folder as root
-4. Add all environment variables from `.env`
-5. Railway auto-deploys on every push
-
-### Deploy Frontend to Vercel
-1. Go to [vercel.com](https://vercel.com) → New Project → Import from GitHub
-2. Set **Root Directory** to `client`
-3. Add env variable: `VITE_API_URL=https://your-railway-app.up.railway.app`
-4. Deploy!
-
----
-
-## 📸 Demo Screenshots
-*(Add screenshots after running locally)*
-
----
-
-## 👨‍💻 Built For
-- Final Year Engineering Project
-- MERN Stack Portfolio Showcase
-- Resume-worthy full-stack project with AI integration
-
----
-
-## 📄 License
-MIT — free to use, modify, and deploy.
