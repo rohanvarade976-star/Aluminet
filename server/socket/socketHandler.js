@@ -69,6 +69,36 @@ const initSocket = (io) => {
       }
     });
 
+    // Delete a message via socket
+    socket.on('delete_message', async ({ room, messageId }) => {
+      try {
+        const msg = await Message.findById(messageId);
+        if (!msg) return;
+        if (!msg.sender.equals(socket.user._id) && socket.user.role !== 'admin') return;
+        msg.isDeleted = true;
+        msg.content = '🚫 This message was deleted';
+        await msg.save();
+        io.to(room).emit('message_deleted', { messageId, content: msg.content });
+      } catch (err) {
+        console.error('Socket delete error:', err.message);
+      }
+    });
+
+    // Mark messages as read
+    socket.on('mark_messages_read', async ({ room }) => {
+      try {
+        const result = await Message.updateMany(
+          { room, sender: { $ne: socket.user._id }, readBy: { $ne: socket.user._id } },
+          { $addToSet: { readBy: socket.user._id } }
+        );
+        if (result.modifiedCount > 0) {
+          socket.to(room).emit('messages_read', { room, readerId: socket.user._id });
+        }
+      } catch (err) {
+        console.error('Socket mark_read error:', err.message);
+      }
+    });
+
     // Typing indicator
     socket.on('typing', ({ room, isTyping }) => {
       socket.to(room).emit('user_typing', { user: socket.user, isTyping });
