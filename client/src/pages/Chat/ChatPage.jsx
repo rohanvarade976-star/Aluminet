@@ -4,7 +4,7 @@ import { chatApi, userApi } from '../../api/services';
 import useAuthStore from '../../store/authStore';
 import useSocketStore from '../../store/socketStore';
 import Spinner from '../../components/common/Spinner';
-import { Send, Search, MessageSquare, Hash } from 'lucide-react';
+import { Send, Search, MessageSquare, Hash, Trash2, Check, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Removed GLOBAL_ROOMS as per requirement to only keep direct messages
@@ -13,7 +13,7 @@ export default function ChatPage() {
   const { room: roomParam } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { socket, joinRoom, leaveRoom, sendMessage, sendTyping, onlineUsers } = useSocketStore();
+  const { socket, joinRoom, leaveRoom, sendMessage, sendTyping, onlineUsers, deleteMessage, markMessagesRead } = useSocketStore();
   const [activeRoom, setActiveRoom] = useState(roomParam || '');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -28,7 +28,10 @@ export default function ChatPage() {
   useEffect(() => {
     setLoading(true);
     chatApi.getMessages(activeRoom)
-      .then(r => setMessages(r.data.messages || []))
+      .then(r => {
+        setMessages(r.data.messages || []);
+        markMessagesRead(activeRoom);
+      })
       .finally(() => setLoading(false));
 
     joinRoom(activeRoom);
@@ -59,15 +62,38 @@ export default function ChatPage() {
   // Socket listeners
   useEffect(() => {
     if (!socket) return;
-    const onMsg = (msg) => setMessages(prev => [...prev, msg]);
+    const onMsg = (msg) => {
+      setMessages(prev => [...prev, msg]);
+      if (document.hasFocus()) {
+        markMessagesRead(activeRoom);
+      }
+    };
     const onTyping = ({ user: u, isTyping }) => {
       setTypingUsers(prev => isTyping
         ? prev.includes(u.name) ? prev : [...prev, u.name]
         : prev.filter(n => n !== u.name));
     };
+    const onMsgDeleted = ({ messageId, content }) => {
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, isDeleted: true, content } : m));
+    };
+    const onMsgsRead = ({ room, readerId }) => {
+      if (room === activeRoom) {
+        setMessages(prev => prev.map(m => m.sender?._id === user?._id && !m.readBy?.includes(readerId) 
+          ? { ...m, readBy: [...(m.readBy || []), readerId] } 
+          : m));
+      }
+    };
+    
     socket.on('new_message', onMsg);
     socket.on('user_typing', onTyping);
-    return () => { socket.off('new_message', onMsg); socket.off('user_typing', onTyping); };
+    socket.on('message_deleted', onMsgDeleted);
+    socket.on('messages_read', onMsgsRead);
+    return () => { 
+      socket.off('new_message', onMsg); 
+      socket.off('user_typing', onTyping); 
+      socket.off('message_deleted', onMsgDeleted);
+      socket.off('messages_read', onMsgsRead);
+    };
   }, [socket]);
 
   // Auto scroll isolated to messages container
@@ -114,7 +140,12 @@ export default function ChatPage() {
                   <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center flex-shrink-0">
                     {otherUser?.avatar ? <img src={otherUser.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-bold text-slate-500">{otherUser?.name?.[0]}</span>}
                   </div>
-                  <span className="text-sm font-medium truncate">{otherUser.name}</span>
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span className="text-sm font-medium truncate pr-2">{otherUser.name}</span>
+                    {isOnline(otherUser._id) && (
+                      <span className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+                    )}
+                  </div>
                 </div>
               </button>
             )
@@ -133,14 +164,19 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col min-w-0 bg-white/60 dark:bg-black/20 backdrop-blur-sm transition-colors">
         {/* Header */}
         {activeRoom ? (
-          <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-2 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
+          <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
             <Hash className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-            <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">
-              {myRooms.find(r => r._id === activeRoom)?.otherUser?.name || activePrivateUser?.name || activeRoom}
-            </h2>
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">
-              — Private Conversation
-            </span>
+            <div className="flex flex-col">
+              <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight flex items-center gap-2">
+                {myRooms.find(r => r._id === activeRoom)?.otherUser?.name || activePrivateUser?.name || activeRoom}
+                {isOnline(myRooms.find(r => r._id === activeRoom)?.otherUser?._id || activePrivateUser?._id) && (
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]" title="Online" />
+                )}
+              </h2>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {isOnline(myRooms.find(r => r._id === activeRoom)?.otherUser?._id || activePrivateUser?._id) ? 'Active now' : 'Offline'}
+              </span>
+            </div>
           </div>
         ) : (
           <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-2 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
@@ -176,16 +212,31 @@ export default function ChatPage() {
                   {showAvatar && !isMine && (
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">{msg.sender?.name}</span>
                   )}
-                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words shadow-sm ${
+                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words shadow-sm flex items-end gap-2 ${
                     isMine
                       ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-br-sm'
                       : 'bg-white/90 dark:bg-white/10 border border-slate-200 dark:border-white/20 text-slate-900 dark:text-white rounded-bl-sm backdrop-blur-md'
                   } ${msg.isDeleted ? 'opacity-50 italic' : ''}`}>
-                    {msg.content}
+                    <span>{msg.content}</span>
+                    {isMine && !msg.isDeleted && (
+                      <div className="flex items-center gap-0.5 mb-[-2px] ml-1">
+                        {msg.readBy?.length > 0 
+                          ? <CheckCheck className="w-3.5 h-3.5 text-blue-300" />
+                          : <Check className="w-3.5 h-3.5 text-white/60" />
+                        }
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs text-gray-400 mt-0.5 mx-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {format(new Date(msg.createdAt), 'h:mm a')}
-                  </span>
+                  <div className={`flex items-center gap-2 mt-0.5 mx-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-xs text-gray-400">
+                      {format(new Date(msg.createdAt), 'h:mm a')}
+                    </span>
+                    {isMine && !msg.isDeleted && (
+                      <button onClick={() => deleteMessage(activeRoom, msg._id)} className="text-rose-400 hover:text-rose-600 transition-colors" title="Delete message">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
