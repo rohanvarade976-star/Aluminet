@@ -5,7 +5,7 @@ exports.getRoomMessages = async (req, res) => {
   try {
     const { room } = req.params;
     const { page = 1, limit = 50 } = req.query;
-    const messages = await Message.find({ room, isDeleted: false })
+    const messages = await Message.find({ room })
       .populate('sender', 'name avatar role')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit).limit(Number(limit));
