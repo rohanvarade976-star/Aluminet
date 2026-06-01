@@ -49,5 +49,7 @@ userSchema.methods.toSafeObject = function () {
   return obj;
 };
 
+userSchema.index({ name: 'text', skills: 'text', currentRole: 'text' });
+
 module.exports = mongoose.model('User', userSchema);
 // Note: points field added in v4 - run seed to update existing users

@@ -1,48 +1,99 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { userApi, mentorApi } from '../../api/services';
 import useAuthStore from '../../store/authStore';
 import Spinner from '../../components/common/Spinner';
-import { MapPin, Briefcase, GraduationCap, Edit, Github, Linkedin, CalendarDays, Award } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { MapPin, Briefcase, GraduationCap, Edit, Github, Linkedin, CalendarDays, Award, X, Calendar, Clock, MessageSquare } from 'lucide-react';
+
+function BookModal({ mentor, onClose }) {
+  const [form, setForm] = useState({ title: '', description: '', scheduledAt: '', duration: 60 });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await mentorApi.bookSession({ mentorId: mentor._id, ...form });
+      toast.success('Session booked! Mentor will confirm shortly.');
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Booking failed');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-scale-in">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Book a Session</h2>
+            <p className="text-sm text-slate-500">with {mentor.name} · {mentor.currentRole}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">Session Title</label>
+            <input required className="input" placeholder="e.g. Career guidance for ML roles"
+              value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">What do you want to discuss?</label>
+            <textarea className="input resize-none" rows={3} placeholder="Describe topics you'd like to cover..."
+              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Date & Time</label>
+              <input required type="datetime-local" className="input"
+                min={new Date().toISOString().slice(0,16)}
+                value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Duration</label>
+              <select className="input" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: Number(e.target.value) }))}>
+                <option value={30}>30 minutes</option>
+                <option value={60}>1 hour</option>
+                <option value={90}>1.5 hours</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
+              {loading ? 'Booking…' : 'Confirm Booking'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function ViewProfile() {
   const { id } = useParams();
   const { user: currentUser } = useAuthStore();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [booking, setBooking] = useState(false);
+  const [bookingMentor, setBookingMentor] = useState(null);
+  const navigate = useNavigate();
+
+  const handleMessage = () => {
+    const ids = [currentUser._id, profile._id].sort();
+    const roomId = `${ids[0]}_${ids[1]}`;
+    navigate(`/chat/${roomId}`);
+  };
 
   useEffect(() => {
     userApi.getProfile(id).then(r => setProfile(r.data.user)).finally(() => setLoading(false));
   }, [id]);
 
-  const handleQuickBook = async () => {
-    const scheduledAt = new Date(Date.now() + 24*60*60*1000).toISOString();
-    setBooking(true);
-    try {
-      await mentorApi.bookSession({ mentorId: id, title: 'Quick mentorship session', scheduledAt, duration: 60 });
-      toast.success('Session request sent!');
-    } catch (err) { toast.error(err.response?.data?.error || 'Booking failed'); }
-    finally { setBooking(false); }
-  };
-
   if (loading) return <Spinner full />;
   if (!profile) return <div className="page-container text-center text-slate-500">User not found.</div>;
 
   const isOwnProfile = currentUser?._id === id;
-
-  // Generate radar data based on skills or defaults
-  const radarData = profile.skills?.length >= 3 
-    ? profile.skills.slice(0, 6).map(s => ({ subject: s, A: 60 + (s.length * 5) % 40, fullMark: 100 }))
-    : [
-        { subject: 'Communication', A: 85, fullMark: 100 },
-        { subject: 'Leadership', A: 75, fullMark: 100 },
-        { subject: 'Problem Solving', A: 90, fullMark: 100 },
-        { subject: 'Technical', A: 80, fullMark: 100 },
-        { subject: 'Teamwork', A: 95, fullMark: 100 },
-      ];
 
   return (
     <div className="page-container animate-fade-in max-w-5xl">
@@ -71,8 +122,13 @@ export default function ViewProfile() {
                     </Link>
                   )}
                   {!isOwnProfile && profile.role === 'alumni' && currentUser?.role === 'student' && (
-                    <button onClick={handleQuickBook} disabled={booking} className="btn-primary text-xs px-4 py-2 shadow-primary">
-                      {booking ? 'Requesting…' : 'Book Session'}
+                    <button onClick={() => setBookingMentor(profile)} className="btn-primary text-xs px-4 py-2 shadow-primary">
+                      Book Session
+                    </button>
+                  )}
+                  {!isOwnProfile && (
+                    <button onClick={handleMessage} className="btn-secondary text-xs px-4 py-2 shadow-sm">
+                      <MessageSquare className="w-3.5 h-3.5" /> Message
                     </button>
                   )}
                 </div>
@@ -162,20 +218,25 @@ export default function ViewProfile() {
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Active community member</p>
           </div>
 
-          {/* Radar Chart */}
-          <div className="card p-5">
-            <h2 className="font-bold text-slate-800 dark:text-white mb-2">Skill Overview</h2>
-            <div className="h-[250px] w-full -ml-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                  <PolarGrid stroke="#cbd5e1" strokeOpacity={0.4} />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Radar name="Proficiency" dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.3} />
-                </RadarChart>
-              </ResponsiveContainer>
+          {profile.skills?.length > 0 && (
+            <div className="card p-5">
+              <h2 className="font-bold text-slate-800 dark:text-white mb-4">Skills</h2>
+              <div className="space-y-2">
+                {profile.skills.slice(0, 8).map((skill, i) => (
+                  <div key={skill} className="flex items-center gap-3">
+                    <span className="text-sm text-slate-600 dark:text-slate-300 w-28 truncate flex-shrink-0">{skill}</span>
+                    <div className="flex-1 h-2 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full"
+                        style={{ width: `${70 + (i * 7) % 30}%`, transition: 'width 0.8s ease' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-3">Self-reported skills</p>
             </div>
-          </div>
+          )}
 
           {/* Tags */}
           {profile.skills?.length > 0 && (
@@ -202,6 +263,7 @@ export default function ViewProfile() {
         </div>
 
       </div>
+      {bookingMentor && <BookModal mentor={bookingMentor} onClose={() => setBookingMentor(null)} />}
     </div>
   );
 }

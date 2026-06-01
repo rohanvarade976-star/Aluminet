@@ -132,7 +132,7 @@ export default function FindMentor() {
 
   useEffect(() => {
     Promise.all([
-      mentorApi.getMatches().then(r => setMatches(r.data.matches || [])).catch(() => {}),
+      mentorApi.getMatches().then(r => setMatches((r.data.matches || []).filter(m => m.matchScore >= 60))).catch(() => {}),
       mentorApi.getAll().then(r => setAllMentors(r.data.mentors || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);

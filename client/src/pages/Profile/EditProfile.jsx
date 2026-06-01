@@ -52,7 +52,23 @@ export default function EditProfile() {
         graduationYear: form.graduationYear ? Number(form.graduationYear) : undefined,
       };
       const { data } = await userApi.updateProfile(payload);
-      updateUser(data.user);
+      updateUser({
+        name: form.name,
+        bio: form.bio,
+        department: form.department,
+        graduationYear: form.graduationYear,
+        currentRole: form.currentRole,
+        currentCompany: form.currentCompany,
+        location: form.location,
+        skills: typeof form.skills === 'string'
+          ? form.skills.split(',').map(s => s.trim()).filter(Boolean)
+          : form.skills,
+        interests: typeof form.interests === 'string'
+          ? form.interests.split(',').map(s => s.trim()).filter(Boolean)
+          : form.interests,
+        linkedIn: form.linkedIn,
+        github: form.github,
+      });
       toast.success('Profile updated!');
       navigate(`/profile/${user._id}`);
     } catch (err) {

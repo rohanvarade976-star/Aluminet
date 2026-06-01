@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { awardAchievement } = require('./achievements.controller');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -21,6 +22,15 @@ exports.updateProfile = async (req, res) => {
     });
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true })
       .select('-password -refreshToken');
+
+    // Award profile_complete if all key fields are filled
+    const updated = await User.findById(req.user._id);
+    const isComplete = updated.bio && updated.skills?.length > 0
+      && updated.department && updated.currentRole;
+    if (isComplete) {
+      awardAchievement(req.user._id, 'profile_complete', req.io).catch(() => {});
+    }
+
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -29,8 +39,18 @@ exports.updateProfile = async (req, res) => {
 
 exports.uploadAvatar = async (req, res) => {
   try {
-    // Without Cloudinary, just return success
-    res.json({ message: 'Avatar upload requires Cloudinary setup', user: req.user });
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    
+    // Construct local public URL
+    const avatarUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/uploads/avatars/${req.file.filename}`;
+    
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: avatarUrl },
+      { new: true }
+    ).select('-password -refreshToken');
+
+    res.json({ message: 'Avatar updated successfully', user, avatarUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -41,11 +61,7 @@ exports.searchUsers = async (req, res) => {
     const { q, role } = req.query;
     if (!q) return res.json({ users: [] });
     const filter = {
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { skills: { $in: [new RegExp(q, 'i')] } },
-        { currentRole: { $regex: q, $options: 'i' } }
-      ],
+      $text: { $search: q },
       isActive: true
     };
     if (role) filter.role = role;
