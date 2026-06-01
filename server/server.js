@@ -47,6 +47,7 @@ app.use(morgan('dev'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Global rate limiter (more permissive — auth routes have their own strict limiter)
+app.set('trust proxy', 1);
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10000 });
 app.use('/api/', limiter);
 
@@ -74,7 +75,8 @@ app.get('/api/health', (req, res) =>
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  const errorMsg = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+  res.status(err.status || 500).json({ error: errorMsg });
 });
 
 initSocket(io);

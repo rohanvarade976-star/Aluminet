@@ -84,7 +84,25 @@ exports.reviewVerification = async (req, res) => {
     ).populate('user', 'name email role');
 
     if (!verif) return res.status(404).json({ error: 'Request not found' });
-    await User.findByIdAndUpdate(verif.user._id, { isVerified: status === 'approved', verificationStatus: status });
+    await User.findByIdAndUpdate(verif.user._id, { verificationStatus: status });
+
+    if (status === 'approved') {
+      const { awardAchievement } = require('./achievements.controller');
+      awardAchievement(verif.user._id, 'verified', req.io).catch(() => {});
+    }
+
+    const { createNotification } = require('./notification.controller');
+    await createNotification({
+      recipient: verif.user._id,
+      sender: req.user._id,
+      type: status === 'approved' ? 'verification_approved' : 'verification_rejected',
+      title: status === 'approved' ? '✅ Account Verified!' : '⚠️ Verification Update',
+      message: status === 'approved'
+        ? 'Your account has been verified. You now have full access.'
+        : `Your verification was rejected. ${reviewNote ? 'Reason: ' + reviewNote : 'Please resubmit.'}`,
+      link: status === 'approved' ? '/dashboard' : '/verify',
+      io: req.io
+    }).catch(() => {});
 
     const subject = status === 'approved' ? '✅ Your AlumiNet account is verified!' : '❌ AlumiNet verification update';
     const html = status === 'approved'
