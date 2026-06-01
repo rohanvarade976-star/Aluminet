@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { studyGroupApi } from '../../api/services';
 import useAuthStore from '../../store/authStore';
+import useSocketStore from '../../store/socketStore';
 import Spinner from '../../components/common/Spinner';
 import { Users, Search, Plus, BookOpen, Send, X, Hash, Lock, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -63,9 +64,22 @@ function CreateGroupModal({ onClose, onCreated }) {
 
 function GroupChat({ group, onClose }) {
   const { user } = useAuthStore();
+  const { socket } = useSocketStore();
   const [messages, setMessages] = useState(group.messages || []);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit('join_group', group._id);
+    socket.on('group_message', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+    return () => {
+      socket.emit('leave_group', group._id);
+      socket.off('group_message');
+    };
+  }, [socket, group._id]);
 
   const send = async () => {
     if (!input.trim()) return;

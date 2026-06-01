@@ -6,7 +6,7 @@ import {
   GraduationCap, LayoutDashboard, Users, Calendar, MessageSquare,
   BookOpen, LogOut, User, Shield, FileText, Briefcase, CheckCircle,
   BookMarked, Trophy, ChevronRight, Wifi, WifiOff, Bell, Menu, X,
-  Sparkles, Zap, Moon, Sun
+  Sparkles, Zap, Moon, Sun, Target
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useSocketStore from '../../store/socketStore';
@@ -30,6 +30,8 @@ const navGroups = {
       { to: '/jobs',         icon: Briefcase,     label: 'Job Board',    color: 'text-orange-600 dark:text-orange-300' },
     ]},
     { label: 'AI Tools', items: [
+      { to: '/skill-gap',      icon: Target,       label: 'Skill Gap',      color: 'text-rose-600 dark:text-rose-300' },
+      { to: '/interview-prep', icon: MessageSquare, label: 'Interview Prep', color: 'text-violet-600 dark:text-violet-300' },
       { to: '/ai-jobs', icon: Sparkles, label: 'AI Job Match',     color: 'text-violet-600 dark:text-violet-300' },
       { to: '/resume',  icon: FileText, label: 'Resume Analyzer',  color: 'text-blue-600 dark:text-blue-300' },
     ]},
@@ -49,6 +51,10 @@ const navGroups = {
       { to: '/chat',         icon: Zap,           label: 'Live Chat',    color: 'text-green-600 dark:text-green-300' },
       { to: '/study-groups', icon: BookMarked,    label: 'Study Groups', color: 'text-cyan-600 dark:text-cyan-300' },
       { to: '/jobs',         icon: Briefcase,     label: 'Post Jobs',    color: 'text-orange-600 dark:text-orange-300' },
+    ]},
+    { label: 'AI Tools', items: [
+      { to: '/skill-gap',      icon: Target,       label: 'Skill Gap',      color: 'text-rose-600 dark:text-rose-300' },
+      { to: '/interview-prep', icon: MessageSquare, label: 'Interview Prep', color: 'text-violet-600 dark:text-violet-300' },
     ]},
     { label: 'Account', items: [
       { to: '/achievements', icon: Trophy,      label: 'Achievements', color: 'text-amber-600 dark:text-amber-300' },

@@ -9,7 +9,10 @@ const useSocketStore = create((set, get) => ({
   connect: (token) => {
     const existing = get().socket;
     if (existing?.connected) return;
-    const socket = io('/', { auth: { token }, transports: ['websocket'] });
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+      || import.meta.env.VITE_API_URL?.replace('/api', '')
+      || 'http://localhost:5000';
+    const socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket'] });
     socket.on('connect', () => set({ connected: true }));
     socket.on('disconnect', () => set({ connected: false }));
     socket.on('online_users', (users) => set({ onlineUsers: users }));

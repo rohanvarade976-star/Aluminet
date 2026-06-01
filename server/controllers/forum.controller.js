@@ -1,4 +1,6 @@
 const ForumPost = require('../models/ForumPost');
+const { createNotification } = require('./notification.controller');
+const { awardAchievement } = require('./achievements.controller');
 
 exports.createPost = async (req, res) => {
   try {
@@ -6,6 +8,7 @@ exports.createPost = async (req, res) => {
     if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
     const post = await ForumPost.create({ title: title.trim(), content: content.trim(), category, tags, author: req.user._id });
     await post.populate('author', 'name avatar role currentRole');
+    awardAchievement(req.user._id, 'first_post', req.io).catch(() => {});
     res.status(201).json({ post });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -74,6 +77,20 @@ exports.addReply = async (req, res) => {
     post.replies.push({ author: req.user._id, content: req.body.content.trim() });
     await post.save();
     await post.populate('replies.author', 'name avatar role currentRole');
+
+    // Notify post author (not if replying to own post)
+    if (!post.author.equals(req.user._id)) {
+      await createNotification({
+        recipient: post.author,
+        sender: req.user._id,
+        type: 'forum_reply',
+        title: `${req.user.name} replied to your post`,
+        message: `"${post.title.substring(0, 60)}"`,
+        link: `/forum/${post._id}`,
+        io: req.io
+      }).catch(() => {});
+    }
+
     // Return only the new reply (last element)
     const newReply = post.replies[post.replies.length - 1];
     res.status(201).json({ reply: newReply, totalReplies: post.replies.length });
@@ -90,6 +107,30 @@ exports.upvotePost = async (req, res) => {
     if (idx === -1) post.upvotes.push(req.user._id);
     else post.upvotes.splice(idx, 1);
     await post.save();
+
+    // Notify author on upvote (not own upvote, only when upvoting not un-upvoting)
+    if (idx === -1 && !post.author.equals(req.user._id)) {
+      await createNotification({
+        recipient: post.author,
+        sender: req.user._id,
+        type: 'post_upvoted',
+        title: `${req.user.name} upvoted your post`,
+        message: `"${post.title.substring(0, 60)}"`,
+        link: `/forum/${post._id}`,
+        io: req.io
+      }).catch(() => {});
+
+      // Check helpful_member achievement (10 total upvotes across all posts)
+      const result = await ForumPost.aggregate([
+        { $match: { author: post.author } },
+        { $project: { count: { $size: '$upvotes' } } },
+        { $group: { _id: null, total: { $sum: '$count' } } }
+      ]);
+      if (result[0]?.total >= 10) {
+        awardAchievement(post.author, 'helpful_member', req.io).catch(() => {});
+      }
+    }
+
     res.json({ upvotes: post.upvotes.length, upvoted: idx === -1 });
   } catch (err) {
     res.status(500).json({ error: err.message });

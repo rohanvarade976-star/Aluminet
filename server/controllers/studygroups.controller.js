@@ -52,6 +52,11 @@ exports.joinGroup = async (req, res) => {
     if (group.members.length >= group.maxMembers) return res.status(400).json({ error: 'Group is full' });
     group.members.push(req.user._id);
     await group.save();
+    // Check study_leader achievement if group now has 5+ members
+    if (group.members.length >= 5) {
+      const { awardAchievement } = require('./achievements.controller');
+      awardAchievement(group.creator, 'study_leader', req.io).catch(() => {});
+    }
     await createNotification({
       recipient: group.creator, sender: req.user._id, type: 'study_group_invite',
       title: `${req.user.name} joined your study group`,

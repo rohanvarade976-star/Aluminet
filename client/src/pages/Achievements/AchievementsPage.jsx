@@ -10,10 +10,22 @@ const calculateLevel = (points) => {
   if (points < 1000) return { level: 4, next: 1000, title: 'Expert' };
   return { level: 5, next: 2000, title: 'Master Alumni' };
 };
+const ALL_ACHIEVEMENTS = [
+  { type: 'first_login',      icon: '👋', title: 'First Steps',       description: 'Logged in for the first time',         points: 10  },
+  { type: 'profile_complete', icon: '✨', title: 'Profile Pro',        description: 'Completed your full profile',           points: 25  },
+  { type: 'first_post',       icon: '💬', title: 'Forum Voice',        description: 'Posted your first forum discussion',    points: 20  },
+  { type: 'first_session',    icon: '🎯', title: 'First Session',      description: 'Booked your first mentorship session',  points: 30  },
+  { type: 'verified',         icon: '✅', title: 'Verified Member',    description: 'Got your account verified by admin',    points: 50  },
+  { type: 'helpful_member',   icon: '⭐', title: 'Helpful Member',     description: 'Received 10 upvotes on your posts',     points: 75  },
+  { type: 'five_sessions',    icon: '🏆', title: 'Mentorship Seeker',  description: 'Completed 5 mentorship sessions',       points: 100 },
+  { type: 'event_host',       icon: '🎤', title: 'Event Host',         description: 'Hosted your first webinar or talk',     points: 60  },
+  { type: 'study_leader',     icon: '📚', title: 'Study Leader',       description: 'Led a study group with 5+ members',     points: 40  },
+];
 
 export default function AchievementsPage() {
   const { user } = useAuthStore();
   const [leaderboard, setLeaderboard] = useState([]);
+  const [myAchievements, setMyAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +33,13 @@ export default function AchievementsPage() {
       .then(r => setLeaderboard(r.data.leaderboard || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+
+    if (user?._id) {
+      achievementApi.getUserAchievements(user._id)
+        .then(r => setMyAchievements(r.data.achievements || []))
+        .catch(() => {});
+    }
+  }, [user?._id]);
 
   const userStats = calculateLevel(user?.points || 0);
   const progressPercent = Math.min(100, ((user?.points || 0) / userStats.next) * 100);
@@ -97,6 +115,29 @@ export default function AchievementsPage() {
 
         {/* ── Right Column: Leaderboard ── */}
         <div className="lg:col-span-2">
+          <h2 className="font-bold text-slate-800 dark:text-white text-xl mb-4">My Achievements</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+            {ALL_ACHIEVEMENTS.map(def => {
+              const earned = myAchievements.find(a => a.type === def.type);
+              return (
+                <div key={def.type}
+                  className={`card p-4 text-center transition-all ${earned ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10' : 'opacity-40 grayscale'}`}>
+                  <div className="text-3xl mb-2">{def.icon}</div>
+                  <p className={`font-bold text-sm ${earned ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>{def.title}</p>
+                  <p className="text-xs text-slate-500 mt-1">{def.description}</p>
+                  <p className={`text-xs font-bold mt-2 ${earned ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
+                    {earned ? `+${def.points} XP earned` : `${def.points} XP`}
+                  </p>
+                  {earned && (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {new Date(earned.earnedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
           <div className="card p-0 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
               <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-lg">

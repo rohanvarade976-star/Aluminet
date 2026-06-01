@@ -32,6 +32,8 @@ import JobsBoard from "./pages/Jobs/JobsBoard";
 import StudyGroups from "./pages/StudyGroups/StudyGroups";
 import NotificationsPage from "./pages/Notifications/NotificationsPage";
 import AchievementsPage from "./pages/Achievements/AchievementsPage";
+import SkillGap from "./pages/AI/SkillGap";
+import InterviewPrep from "./pages/AI/InterviewPrep";
 import Layout from "./components/common/Layout";
 import Spinner from "./components/common/Spinner";
 
@@ -101,6 +103,8 @@ export default function App() {
           <Route path="profile/edit" element={<EditProfile />} />
           <Route path="ai-jobs" element={<JobRecommendations />} />
           <Route path="resume" element={<ResumeAnalyzer />} />
+          <Route path="skill-gap" element={<SkillGap />} />
+          <Route path="interview-prep" element={<InterviewPrep />} />
           <Route path="verify" element={<VerifyMe />} />
           <Route path="admin/verify" element={<ProtectedRoute roles={["admin"]}><AdminVerify /></ProtectedRoute>} />
           <Route path="jobs" element={<JobsBoard />} />

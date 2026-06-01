@@ -7,23 +7,20 @@ import Spinner from '../../components/common/Spinner';
 import { Send, Search, MessageSquare, Hash } from 'lucide-react';
 import { format } from 'date-fns';
 
-const GLOBAL_ROOMS = [
-  { id: 'general', name: 'General', desc: 'Open to everyone' },
-  { id: 'career',  name: 'Career',  desc: 'Jobs & opportunities' },
-  { id: 'technical', name: 'Technical', desc: 'Code & CS topics' },
-  { id: 'mentorship', name: 'Mentorship', desc: 'Advice & guidance' },
-];
+// Removed GLOBAL_ROOMS as per requirement to only keep direct messages
 
 export default function ChatPage() {
   const { room: roomParam } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { socket, joinRoom, leaveRoom, sendMessage, sendTyping, onlineUsers } = useSocketStore();
-  const [activeRoom, setActiveRoom] = useState(roomParam || 'general');
+  const [activeRoom, setActiveRoom] = useState(roomParam || '');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [myRooms, setMyRooms] = useState([]);
+  const [activePrivateUser, setActivePrivateUser] = useState(null);
   const messagesContainerRef = useRef(null);
   const typingTimer = useRef(null);
 
@@ -37,8 +34,27 @@ export default function ChatPage() {
     joinRoom(activeRoom);
     navigate(`/chat/${activeRoom}`, { replace: true });
 
+    chatApi.getRooms().then(r => {
+      const fetchedRooms = r.data.rooms || [];
+      setMyRooms(fetchedRooms);
+      // Auto-select first room if no active room is specified and rooms exist
+      if (!activeRoom && fetchedRooms.length > 0) {
+        setActiveRoom(fetchedRooms[0]._id);
+      }
+    }).catch(e => console.error(e));
+
+    if (activeRoom.includes('_')) {
+      const otherId = activeRoom.split('_').find(id => id !== user?._id);
+      if (otherId) {
+        userApi.getProfile(otherId).then(r => setActivePrivateUser(r.data.user)).catch(() => {});
+      }
+    } else {
+      setActivePrivateUser(null);
+    }
+
+    if (!activeRoom) return;
     return () => leaveRoom(activeRoom);
-  }, [activeRoom]);
+  }, [activeRoom, user]);
 
   // Socket listeners
   useEffect(() => {
@@ -82,21 +98,27 @@ export default function ChatPage() {
     <div className="flex h-full w-full">
       {/* Rooms sidebar */}
       <div className="w-56 bg-white/80 dark:bg-white/5 backdrop-blur-md border-r border-slate-200 dark:border-white/10 flex flex-col flex-shrink-0 transition-colors">
+        {/* Direct Messages */}
         <div className="p-4 border-b border-slate-200 dark:border-white/10">
-          <h2 className="font-semibold text-slate-900 dark:text-white text-sm">Channels</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white text-sm">Direct Messages</h2>
         </div>
         <div className="flex-1 p-2 overflow-y-auto">
-          {GLOBAL_ROOMS.map(room => (
-            <button key={room.id} onClick={() => setActiveRoom(room.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-all ${
-                activeRoom === room.id ? 'bg-gradient-to-r from-violet-600/90 to-fuchsia-600/90 dark:from-violet-600/80 dark:to-fuchsia-600/80 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'}`}>
-              <div className="flex items-center gap-2">
-                <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="text-sm font-medium">{room.name}</span>
-              </div>
-              <p className={`text-xs ml-5.5 pl-0.5 mt-0.5 ${activeRoom === room.id ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}`}>{room.desc}</p>
-            </button>
-          ))}
+          {myRooms.filter(r => r._id.includes('_')).map(room => {
+            const otherUser = room.otherUser;
+            if (!otherUser) return null;
+            return (
+              <button key={room._id} onClick={() => setActiveRoom(room._id)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-all ${
+                  activeRoom === room._id ? 'bg-gradient-to-r from-violet-600/90 to-fuchsia-600/90 dark:from-violet-600/80 dark:to-fuchsia-600/80 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'}`}>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {otherUser?.avatar ? <img src={otherUser.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-bold text-slate-500">{otherUser?.name?.[0]}</span>}
+                  </div>
+                  <span className="text-sm font-medium truncate">{otherUser.name}</span>
+                </div>
+              </button>
+            )
+          })}
         </div>
         {/* Online count */}
         <div className="p-3 border-t border-slate-200 dark:border-white/10">
@@ -110,15 +132,30 @@ export default function ChatPage() {
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0 bg-white/60 dark:bg-black/20 backdrop-blur-sm transition-colors">
         {/* Header */}
-        <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-2 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
-          <Hash className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-          <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">{GLOBAL_ROOMS.find(r => r.id === activeRoom)?.name || activeRoom}</h2>
-          <span className="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">— {GLOBAL_ROOMS.find(r => r.id === activeRoom)?.desc}</span>
-        </div>
+        {activeRoom ? (
+          <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-2 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
+            <Hash className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">
+              {myRooms.find(r => r._id === activeRoom)?.otherUser?.name || activePrivateUser?.name || activeRoom}
+            </h2>
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400 ml-1">
+              — Private Conversation
+            </span>
+          </div>
+        ) : (
+          <div className="border-b border-slate-200 dark:border-white/10 px-5 py-3 flex items-center gap-2 bg-white/40 dark:bg-white/5 backdrop-blur-md z-10 shadow-sm">
+            <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">Messages</h2>
+          </div>
+        )}
 
         {/* Messages */}
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
-          {loading ? <Spinner /> : messages.length === 0 ? (
+          {!activeRoom ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm">Select a conversation to start chatting</p>
+            </div>
+          ) : loading ? <Spinner /> : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
               <p className="text-sm">No messages yet. Say hello!</p>
@@ -172,10 +209,11 @@ export default function ChatPage() {
           <form onSubmit={handleSend} className="flex items-center gap-3">
             <input
               className="input flex-1"
-              placeholder={`Message #${GLOBAL_ROOMS.find(r => r.id === activeRoom)?.name || activeRoom}…`}
+              placeholder={`Message ${myRooms.find(r => r._id === activeRoom)?.otherUser?.name || activePrivateUser?.name || '...'}`}
               value={input}
               onChange={handleTyping}
               maxLength={2000}
+              disabled={!activeRoom}
             />
             <button type="submit" disabled={!input.trim()}
               className="w-10 h-10 flex items-center justify-center bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0 shadow-md">

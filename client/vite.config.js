@@ -12,7 +12,7 @@ export default defineConfig({
         secure: false,
       },
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'ws://localhost:5000',
         ws: true,
         changeOrigin: true,
       }
