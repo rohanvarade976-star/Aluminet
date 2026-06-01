@@ -27,6 +27,8 @@ const useSocketStore = create((set, get) => ({
   joinRoom: (room) => get().socket?.emit('join_room', room),
   leaveRoom: (room) => get().socket?.emit('leave_room', room),
   sendMessage: (payload) => get().socket?.emit('send_message', payload),
+  deleteMessage: (room, messageId) => get().socket?.emit('delete_message', { room, messageId }),
+  markMessagesRead: (room) => get().socket?.emit('mark_messages_read', { room }),
   sendTyping: (room, isTyping) => get().socket?.emit('typing', { room, isTyping }),
 }));
 
