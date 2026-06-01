@@ -4,9 +4,10 @@ import { authApi } from '../api/services';
 const useAuthStore = create((set) => ({
   user: null,
   accessToken: localStorage.getItem('accessToken') || null,
-  loading: false,
+  loading: true,
 
   init: async () => {
+    set({ loading: true });
     const token = localStorage.getItem('accessToken');
     if (!token) return set({ loading: false, user: null });
     try {

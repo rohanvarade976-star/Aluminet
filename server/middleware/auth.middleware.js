@@ -16,6 +16,9 @@ const protect = async (req, res, next) => {
 
 const authorize = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'Access denied' });
+  if (req.user.role === 'alumni' && req.user.verificationStatus !== 'approved') {
+    return res.status(403).json({ error: 'Pending identity verification. Full access requires admin approval.' });
+  }
   next();
 };
 

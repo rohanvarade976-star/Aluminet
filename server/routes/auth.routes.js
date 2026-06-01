@@ -3,8 +3,11 @@ const rateLimit = require('express-rate-limit');
 const { register, login, refreshToken, verifyEmail, logout, getMe, forgotPassword, resetPassword } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 
-// Strict rate limiter for auth routes disabled for local development
-const authLimiter = (req, res, next) => next();
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
 
 router.post('/register', authLimiter, register);
 router.post('/login',    authLimiter, login);

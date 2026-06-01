@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { sendEmail, isEmailConfigured } = require('../services/emailService');
+const { awardAchievement } = require('./achievements.controller');
 
 // Guard: crash on startup if JWT secrets are not set
 if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
@@ -105,6 +106,9 @@ exports.login = async (req, res) => {
       lastLogin: new Date(),
       $inc: { loginCount: 1 }
     });
+
+    // Award first_login achievement (idempotent — only fires once)
+    awardAchievement(user._id, 'first_login', null).catch(() => {});
 
     res.json({ accessToken, refreshToken, user: user.toSafeObject() });
   } catch (err) {
