@@ -1,10 +1,16 @@
 const Event = require('../models/Event');
+const { awardAchievement } = require('./achievements.controller');
 const { sendEmail } = require('../services/emailService');
 const User = require('../models/User');
 
 exports.createEvent = async (req, res) => {
   try {
-    const event = await Event.create({ ...req.body, host: req.user._id });
+    const { title, description, type, scheduledAt, maxAttendees, meetLink, bannerUrl, tags, isPublished } = req.body;
+    const event = await Event.create({
+      title, description, type, scheduledAt, maxAttendees, meetLink, bannerUrl, tags, isPublished,
+      host: req.user._id
+    });
+    awardAchievement(req.user._id, 'event_host', req.io).catch(() => {});
     res.status(201).json({ event });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -46,19 +52,22 @@ exports.getEvent = async (req, res) => {
 
 exports.rsvpEvent = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
-    if (event.attendees.length >= event.maxAttendees) return res.status(400).json({ error: 'Event is full' });
+    const baseEvent = await Event.findById(req.params.id);
+    if (!baseEvent) return res.status(404).json({ error: 'Event not found' });
 
-    const alreadyRSVPd = event.attendees.includes(req.user._id);
+    const alreadyRSVPd = baseEvent.attendees.includes(req.user._id);
     if (alreadyRSVPd) {
-      event.attendees.pull(req.user._id);
-      await event.save();
+      await Event.findByIdAndUpdate(req.params.id, { $pull: { attendees: req.user._id } });
       return res.json({ message: 'RSVP cancelled', attending: false });
     }
 
-    event.attendees.push(req.user._id);
-    await event.save();
+    const event = await Event.findOneAndUpdate(
+      { _id: req.params.id, $expr: { $lt: [{ $size: '$attendees' }, '$maxAttendees'] } },
+      { $addToSet: { attendees: req.user._id } },
+      { new: true }
+    );
+
+    if (!event) return res.status(400).json({ error: 'Event is full or not found' });
 
     await sendEmail({
       to: req.user.email,

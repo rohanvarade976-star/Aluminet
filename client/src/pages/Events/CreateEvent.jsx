@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { eventApi } from '../../api/services';
-import { ArrowLeft, Calendar } from 'lucide-react';
+import { ArrowLeft, Calendar, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/authStore';
 
 export default function CreateEvent() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', type: 'webinar',
@@ -14,6 +16,19 @@ export default function CreateEvent() {
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  if (user?.role === 'alumni' && user?.verificationStatus !== 'approved') {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center mt-12">
+        <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Pending Verification</h2>
+        <p className="text-gray-600 mb-6">
+          You must be a verified alumni to host events. Please complete your identity verification first.
+        </p>
+        <Link to="/verify" className="btn-primary">Go to Verification Center</Link>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
