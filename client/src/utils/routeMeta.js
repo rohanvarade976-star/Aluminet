@@ -1,7 +1,7 @@
 /** Page titles for the app shell top bar */
 const ROUTES = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Overview' },
-  '/mentors': { title: 'Find Mentors', subtitle: 'AI-powered matching' },
+  '/mentors': { title: 'Find Alumni', subtitle: 'AI-powered matching' },
   '/sessions': { title: 'My Sessions', subtitle: 'Mentorship' },
   '/events': { title: 'Events', subtitle: 'Webinars & talks' },
   '/events/create': { title: 'Create Event', subtitle: 'Host for community' },

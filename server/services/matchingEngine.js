@@ -62,7 +62,7 @@ function matchMentors(student, mentors) {
 
   const sv = buildVec(student);
   const results = mentors.map(m => {
-    let score = cosine(sv, buildVec(m));
+    let score = cosine(sv, buildVec(m)) * 1.5;
     if (student.department && m.department &&
         student.department.toLowerCase() === m.department.toLowerCase()) score += 0.15;
     if (m.currentCompany && m.currentRole) score += 0.05;
@@ -82,7 +82,7 @@ function matchMentors(student, mentors) {
         (m.interests || []).map(x => x.toLowerCase()).includes(s.toLowerCase())
       )
     };
-  }).filter(m => m.matchScore > 0)
+  }).filter(m => m.matchScore >= 70)
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 10);
 

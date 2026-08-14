@@ -11,7 +11,7 @@ const useSocketStore = create((set, get) => ({
     if (existing?.connected) return;
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
       || import.meta.env.VITE_API_URL?.replace('/api', '')
-      || 'http://localhost:5000';
+      || '/';
     const socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket'] });
     socket.on('connect', () => set({ connected: true }));
     socket.on('disconnect', () => set({ connected: false }));

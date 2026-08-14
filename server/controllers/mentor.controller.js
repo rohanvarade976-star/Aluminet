@@ -14,11 +14,6 @@ exports.getMatches = async (req, res) => {
 
     let matches = matchMentors(student, mentors);
 
-    // Inject dummy high scores globally for presentation so it shows relevant results everywhere
-    matches = matches.map((m, i) => ({
-      ...m,
-      matchScore: m.matchScore < 60 ? [94, 88, 76, 72, 68, 65][i] || (60 + Math.floor(Math.random() * 15)) : m.matchScore
-    }));
 
     res.json({ matches });
   } catch (err) {

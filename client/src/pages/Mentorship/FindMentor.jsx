@@ -149,7 +149,7 @@ export default function FindMentor() {
   return (
     <div className="p-6 max-w-6xl mx-auto animate-fade-in">
       <div className="page-header">
-        <h1 className="page-title">Find a Mentor</h1>
+        <h1 className="page-title">Find an Alumni</h1>
         <p className="page-subtitle">Connect with experienced alumni who can guide your career</p>
       </div>
 
@@ -161,7 +161,7 @@ export default function FindMentor() {
         </button>
         <button onClick={() => setTab('all')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'all' ? 'bg-white shadow-card text-primary-700' : 'text-slate-500 hover:text-slate-700'}`}>
-          <BookOpen className="w-4 h-4" /> All Mentors ({allMentors.length})
+          <BookOpen className="w-4 h-4" /> All Alumni ({allMentors.length})
         </button>
       </div>
 
@@ -180,7 +180,7 @@ export default function FindMentor() {
               <Sparkles className="w-8 h-8 text-primary-400" />
             </div>
             <h3 className="font-bold text-slate-700 mb-2">No AI matches yet</h3>
-            <p className="text-slate-400 text-sm">Add skills and interests to your profile to get matched with the perfect mentors</p>
+            <p className="text-slate-400 text-sm">Add skills and interests to your profile to get matched with the perfect alumni</p>
             <Link to="/profile/edit" className="btn-primary mt-5">Update My Profile</Link>
           </div>
         ) : (
@@ -198,7 +198,7 @@ export default function FindMentor() {
           {filtered.length === 0 && (
             <div className="col-span-full text-center py-12 text-slate-400">
               <Search className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-              <p>No mentors found for "{search}"</p>
+              <p>No alumni found for "{search}"</p>
             </div>
           )}
         </div>

@@ -19,7 +19,7 @@ const navGroups = {
   student: [
     { label: 'Overview', items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', color: 'text-indigo-600 dark:text-indigo-300' },
-      { to: '/mentors',   icon: Users,           label: 'Find Mentors', color: 'text-violet-600 dark:text-violet-300' },
+      { to: '/mentors',   icon: Users,           label: 'Find Alumni', color: 'text-violet-600 dark:text-violet-300' },
       { to: '/sessions',  icon: BookOpen,         label: 'My Sessions', color: 'text-blue-600 dark:text-blue-300' },
     ]},
     { label: 'Community', items: [

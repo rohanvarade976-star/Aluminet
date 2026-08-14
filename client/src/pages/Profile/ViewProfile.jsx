@@ -218,25 +218,6 @@ export default function ViewProfile() {
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Active community member</p>
           </div>
 
-          {profile.skills?.length > 0 && (
-            <div className="card p-5">
-              <h2 className="font-bold text-slate-800 dark:text-white mb-4">Skills</h2>
-              <div className="space-y-2">
-                {profile.skills.slice(0, 8).map((skill, i) => (
-                  <div key={skill} className="flex items-center gap-3">
-                    <span className="text-sm text-slate-600 dark:text-slate-300 w-28 truncate flex-shrink-0">{skill}</span>
-                    <div className="flex-1 h-2 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full"
-                        style={{ width: `${70 + (i * 7) % 30}%`, transition: 'width 0.8s ease' }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-slate-400 mt-3">Self-reported skills</p>
-            </div>
-          )}
 
           {/* Tags */}
           {profile.skills?.length > 0 && (
