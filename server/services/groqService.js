@@ -2,8 +2,8 @@ const Groq = require('groq-sdk');
 
 // Single source of truth for model names
 const MODELS = {
-  default: 'llama-3.3-70b-versatile',
-  fast:    'llama-3.1-8b-instant',
+  default: 'qwen/qwen3.8-27b',
+  fast:    'qwen/qwen3.8-27b',
 };
 
 let groq = null;
