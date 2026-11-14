@@ -1,71 +1,38 @@
-// Simple in-memory TTL cache for mentor match results (5 min TTL)
-const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-function getCached(key) {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > CACHE_TTL) { cache.delete(key); return null; }
-  return entry.data;
-}
-
-function setCache(key, data) {
-  cache.set(key, { data, ts: Date.now() });
-  // Prevent unbounded growth — max 200 cached entries
-  if (cache.size > 200) {
-    const oldest = cache.keys().next().value;
-    cache.delete(oldest);
-  }
-}
-
-// ── TF-IDF Cosine Similarity ──────────────────────────────────────
-
-function tokenize(text) {
-  if (!text) return [];
-  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
-}
-
-function buildTF(tokens) {
-  const tf = {};
-  tokens.forEach(t => { tf[t] = (tf[t] || 0) + 1; });
-  const total = tokens.length || 1;
-  Object.keys(tf).forEach(k => { tf[k] /= total; });
-  return tf;
-}
-
-function cosine(a, b) {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  let dot = 0, ma = 0, mb = 0;
-  keys.forEach(k => {
-    const av = a[k] || 0, bv = b[k] || 0;
-    dot += av * bv; ma += av * av; mb += bv * bv;
-  });
-  return (ma && mb) ? dot / (Math.sqrt(ma) * Math.sqrt(mb)) : 0;
-}
-
-function buildVec(user) {
-  const parts = [
-    ...(user.skills || []),
-    ...(user.interests || []),
-    ...tokenize(user.bio || ''),
-    ...tokenize(user.currentRole || ''),
-    ...(user.department ? [user.department] : [])
-  ];
-  return buildTF(parts.map(p => p.toLowerCase()));
-}
-
+/**
+ * AlumiNet Matching Engine
+ * 
+ * Computes deterministic multi-attribute compatibility scores between a student and prospective alumni mentors.
+ * 
+ * Scoring Formula:
+ * - Technical Skills Coverage (60% weight): (|Common Skills| / |Student Target Skills|) * 60
+ * - Domain & Career Interests (40% weight): (|Common Interests| / |Student Target Interests|) * 40
+ * - Minimum Cutoff Threshold: >= 70% (lower-compatibility candidates are filtered out)
+ * 
+ * @param {Object} student - Active student user document with skills and interests arrays
+ * @param {Array<Object>} mentors - Collection of alumni mentor documents
+ * @returns {Array<Object>} Sorted list of top matching mentors scoring >= 70%
+ */
 function matchMentors(student, mentors) {
-  // Cache key: studentId + mentor count (invalidates when alumni list changes)
-  const cacheKey = `${student._id}_${mentors.length}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const sv = buildVec(student);
   const results = mentors.map(m => {
-    let score = cosine(sv, buildVec(m)) * 1.5;
-    if (student.department && m.department &&
-        student.department.toLowerCase() === m.department.toLowerCase()) score += 0.15;
-    if (m.currentCompany && m.currentRole) score += 0.05;
+    let score = 0;
+    
+    // 1. Common Skills (60% weight)
+    const studentSkills = (student.skills || []).map(s => s.toLowerCase().trim());
+    const mentorSkills = (m.skills || []).map(s => s.toLowerCase().trim());
+    const commonSkills = studentSkills.filter(s => mentorSkills.includes(s));
+    
+    if (studentSkills.length > 0) {
+      score += (commonSkills.length / studentSkills.length) * 60;
+    }
+
+    // 2. Common Interests (40% weight)
+    const studentInterests = (student.interests || []).map(s => s.toLowerCase().trim());
+    const mentorInterests = (m.interests || []).map(s => s.toLowerCase().trim());
+    const commonInterests = studentInterests.filter(s => mentorInterests.includes(s));
+    
+    if (studentInterests.length > 0) {
+      score += (commonInterests.length / studentInterests.length) * 40;
+    }
 
     return {
       mentor: {
@@ -74,7 +41,7 @@ function matchMentors(student, mentors) {
         currentRole: m.currentRole, skills: m.skills, bio: m.bio,
         location: m.location, graduationYear: m.graduationYear
       },
-      matchScore: Math.min(Math.round(score * 100), 99),
+      matchScore: Math.min(Math.round(score), 99),
       commonSkills: (student.skills || []).filter(s =>
         (m.skills || []).map(x => x.toLowerCase()).includes(s.toLowerCase())
       ),
@@ -86,7 +53,6 @@ function matchMentors(student, mentors) {
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 10);
 
-  setCache(cacheKey, results);
   return results;
 }
 
