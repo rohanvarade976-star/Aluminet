@@ -49,7 +49,7 @@ Be friendly, concise, and actionable. Use bullet points when listing items. Keep
 
     let reply;
     try {
-      reply = await chat(messages, { model: 'llama-3.3-70b-versatile', maxTokens: 512 });
+      reply = await chat(messages, { model: 'qwen/qwen3.8-27b', maxTokens: 512 });
     } catch (apiErr) {
       console.warn('Chat API fallback triggered:', apiErr.message);
       reply = "I'm currently running in offline demo mode since the AI API key isn't configured! However, you can find a mentor by clicking 'Find Mentors' in the left sidebar, browsing our alumni, and booking a session.";
@@ -171,7 +171,7 @@ exports.getForumSuggestion = async (req, res) => {
 
     let suggestion;
     try {
-      suggestion = await chat(messages, { model: 'llama-3.3-70b-versatile', maxTokens: 300 });
+      suggestion = await chat(messages, { model: 'qwen/qwen3.8-27b', maxTokens: 300 });
     } catch (apiErr) {
       console.warn('Forum AI fallback triggered:', apiErr.message);
       suggestion = "Here is a quick fallback suggestion: Reach out to alumni in this field directly via the 'Find Mentors' tab. They can provide specific, actionable advice based on their own experiences!";
