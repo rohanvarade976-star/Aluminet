@@ -1,154 +1,91 @@
 # AlumiNet 🎓
-### Smart Alumni-Student Interaction Platform
+### Smart Alumni-Student Interaction & Career Acceleration Platform
 
-A full-stack, AI-powered web platform connecting students, alumni, and institutions through mentorship, real-time chat, events, and a community forum.
-
----
-
-## ✨ Features
-
-| Module | Description |
-|--------|-------------|
-| 🔐 Auth | JWT + Refresh tokens, email verification, role-based access (Student / Alumni / Admin) |
-| 🤖 AI Mentor Matching | TF-IDF cosine similarity engine matches students to mentors based on skills & interests |
-| 💬 Real-time Chat | Socket.io powered chat rooms with typing indicators and online presence |
-| 📅 Events | Alumni can host webinars/talks; students can RSVP with email confirmation |
-| 🗣️ Forum | Category-based discussion board with upvotes, replies, and pinned posts |
-| 📊 Admin Dashboard | Analytics, user management, fraud detection & resolution |
-| 🛡️ Fraud Detection | Heuristic scoring flags suspicious profiles and activity |
+A production-grade, full-stack platform bridging the gap between university engineering students and graduated alumni through intelligent matching, context-aware AI advisory, real-time messaging, and institutional community spaces.
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Core Features
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + Vite, TailwindCSS, Zustand, Socket.io-client, Recharts |
-| Backend | Node.js, Express.js, Socket.io |
-| Database | MongoDB Atlas (free tier) |
-| Auth | JWT Access + Refresh Tokens, bcrypt |
-| File Upload | Cloudinary (free tier) |
-| Email | Nodemailer (Gmail SMTP) |
-| Deployment | Vercel (frontend) + Railway (backend) — both free |
+| Module | Technical Overview |
+|---|---|
+| 🎯 **Intelligent Alumni Matching** | Deterministic weighted overlap algorithm evaluating technical skill coverage (60%) and career interests (40%) with a strict 70% threshold. |
+| 🤖 **Generative AI Career Suite** | Powered by Groq (`qwen/qwen3.8-27b`) for sub-second career guidance, personalized skill-gap roadmaps, and mock technical interview questions. |
+| 💬 **Real-Time Collaboration** | Socket.io WebSockets with room multiplexing, optimistic updates via Zustand, typing indicators, read receipts, and online presence tracking. |
+| 🛡️ **Identity Verification & RBAC** | Institutional ID verification workflow separating Student, Alumni, and Admin access levels. |
+| 🚨 **Automated Fraud Prevention** | IP burst detection and cumulative fraud scoring with automated account flagging and a scheduled 24-hour score decay routine. |
+| 💼 **Job & Referral Board** | Verified alumni post company openings and internal referrals filterable by tech stack, department, and experience level. |
+| 📅 **Webinars & Events** | Alumni-hosted sessions with RSVP tracking, attendee limits, and calendar links. |
+| 🗣️ **Discussion Forum** | Reddit-style campus forum with category tagging, upvoting, admin pinning, and AI co-pilot suggestions. |
+| 📚 **Study Groups** | Peer-to-peer collaborative learning hubs with member caps and dedicated chat channels. |
+| 🏆 **Gamification** | Points, badges, and unlockable achievements incentivizing community participation. |
 
 ---
 
-## 🚀 Setup Instructions (Local Development)
+## 🛠️ Technology Stack
+
+- **Frontend:** React 18, Vite, Tailwind CSS, Framer Motion, Zustand, Lucide React, Recharts, React Hot Toast
+- **Backend:** Node.js, Express.js (REST API, MVC Architecture)
+- **Database:** MongoDB Atlas, Mongoose ODM
+- **Real-Time:** Socket.io
+- **AI Engine:** Groq SDK (`qwen/qwen3.8-27b`)
+- **Authentication:** JWT (Access & Refresh tokens), Bcrypt.js (12 rounds)
+- **Security:** Helmet, Express Rate Limit, Express Validator
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js v18+
-- Git
-- A free [MongoDB Atlas](https://cloud.mongodb.com) account
-- A free [Cloudinary](https://cloudinary.com) account
-- Gmail account (for email notifications)
+- Node.js (v18+)
+- MongoDB Atlas cluster URI
+- Free Groq API Key (from [console.groq.com](https://console.groq.com))
 
----
-
-### Step 1: Clone and Install
-
+### 1. Installation
 ```bash
-git clone <your-repo-url>
-cd aluminet
-npm install
+# Clone the repository
+git clone https://github.com/rohanvarade976-star/Aluminet.git
+cd Aluminet
+
+# Install all dependencies (Root, Server, Client)
 npm run install:all
 ```
 
----
-
-### Step 2: Configure the Backend
-
-```bash
-cd server
-cp .env.example .env
-```
-
-Edit `server/.env` and fill in:
-
+### 2. Configure Environment Variables
+Create a `.env` file in the `server` directory (reference `server/.env.example`):
 ```env
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster0.xxxxx.mongodb.net/aluminet
+PORT=5000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
 
-JWT_SECRET=any_random_string_here_32chars
-JWT_REFRESH_SECRET=another_random_string_here
-
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-EMAIL_USER=your_gmail@gmail.com
-EMAIL_PASS=your_gmail_app_password
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_jwt_refresh_secret
+GROQ_API_KEY=your_groq_api_key
 ```
 
-> **Getting Gmail App Password:**
-> Google Account → Security → 2-Step Verification → App Passwords → Generate
-
----
-
-### Step 3: Seed Demo Data
-
+### 3. Seed Demo Data
 ```bash
 npm run seed
 ```
 
-This creates 6 demo users:
-- **Student:** student@demo.com / demo123
-- **Alumni:** alumni@demo.com / demo123
-- **Admin:** admin@demo.com / demo123
-
----
-
-### Step 4: Run the App
-
+### 4. Run Development Servers
 ```bash
-# From root folder - runs both frontend and backend
+# Start both Backend and Frontend concurrently
 npm run dev
 ```
-
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:5000
-- API Health: http://localhost:5000/api/health
+- Frontend UI: `http://localhost:5173`
+- Backend API: `http://localhost:5000`
 
 ---
 
-## 📁 Project Structure
+## 🔑 Demo Credentials
 
-```
-aluminet/
-├── client/              ← React + Vite frontend
-│   └── src/
-│       ├── api/         ← Axios instance + API services
-│       ├── components/  ← Reusable UI components
-│       ├── pages/       ← Route-level page components
-│       ├── store/       ← Zustand state (auth, socket)
-│       └── hooks/       ← Custom React hooks
-│
-└── server/              ← Node.js + Express backend
-    ├── config/          ← DB + Cloudinary config
-    ├── controllers/     ← Route handler logic
-    ├── middleware/       ← Auth, fraud detection
-    ├── models/          ← Mongoose schemas
-    ├── routes/          ← Express route definitions
-    ├── services/        ← AI engine, email, matching
-    └── socket/          ← Socket.io event handlers
-```
+- **Student:** `student@demo.com` / `demo123`
+- **Alumni:** `alumni@demo.com` / `demo123`
+- **Admin:** `admin@demo.com` / `demo123`
 
 ---
 
-## 🤖 AI Features Explained
-
-### Mentor Matching Engine (`server/services/matchingEngine.js`)
-Uses **TF-IDF cosine similarity** — no paid APIs needed:
-1. Converts each user's skills, interests, bio, department into a term-frequency vector
-2. Computes cosine similarity between student vector and each alumni vector
-3. Applies domain boosts (same department +15%, active professional +5%)
-4. Returns top 10 ranked matches with match score and common skills
-
-### Fraud Detection (`server/middleware/fraud.middleware.js`)
-Rule-based heuristic scoring:
-- High request rate from same IP → +30 score
-- Previously flagged account → +50 score
-- Cumulative score > 70 → request blocked + logged
-- Admin can review and resolve fraud logs
-
----
-
-
+## 📄 License
+This project is open-source and licensed under the MIT License.
