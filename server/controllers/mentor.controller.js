@@ -72,7 +72,7 @@ exports.bookSession = async (req, res) => {
     // Award first_session achievement to student
     awardAchievement(req.user._id, 'first_session', req.io).catch(() => {});
 
-    const populated = await session.populate(['mentor', 'mentee'], 'name email avatar');
+    const populated = await session.populate(['mentor', 'mentee'], 'name avatar');
     res.status(201).json({ session: populated });
   } catch (err) {
     res.status(500).json({ error: err.message });

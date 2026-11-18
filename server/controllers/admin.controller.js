@@ -5,6 +5,7 @@ const ForumPost = require('../models/ForumPost');
 const FraudLog = require('../models/FraudLog');
 const JobPosting = require('../models/JobPosting');
 const StudyGroup = require('../models/StudyGroup');
+const { FULL_USER_SELECT } = require('../utils/userFields');
 
 exports.getDashboardStats = async (req, res) => {
   try {
@@ -56,7 +57,7 @@ exports.getAllUsers = async (req, res) => {
     ];
 
     const users = await User.find(filter)
-      .select('-password -refreshToken')
+      .select(FULL_USER_SELECT)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit).limit(Number(limit));
     const total = await User.countDocuments(filter);
@@ -78,7 +79,7 @@ exports.updateUser = async (req, res) => {
         ...(role && { role })
       },
       { new: true }
-    ).select('-password -refreshToken');
+    ).select(FULL_USER_SELECT);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
   } catch (err) {

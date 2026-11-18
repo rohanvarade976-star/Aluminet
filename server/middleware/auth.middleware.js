@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { FULL_USER_SELECT } = require('../utils/userFields');
 
 const protect = async (req, res, next) => {
   try {
@@ -7,7 +8,7 @@ const protect = async (req, res, next) => {
     if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
     const token = auth.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password -refreshToken');
+    const user = await User.findById(decoded.id).select(FULL_USER_SELECT);
     if (!user || !user.isActive) return res.status(401).json({ error: 'Unauthorized' });
     req.user = user;
     next();

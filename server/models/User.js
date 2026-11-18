@@ -46,6 +46,7 @@ userSchema.methods.toSafeObject = function () {
   delete obj.password;
   delete obj.refreshToken;
   delete obj.emailVerifyToken;
+  delete obj.emailVerifyExpires;
   return obj;
 };
 
