@@ -5,3 +5,10 @@ build
 *.log
 uploads/*
 !uploads/.gitkeep
+
+.claude/
+CLAUDE.md
+.local-notes/
+.env
+.env.*
+!.env.example
