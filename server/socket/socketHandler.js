@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const StudyGroup = require('../models/StudyGroup');
+const { canAccessRoom } = require('../utils/roomAccess');
 
 const onlineUsers = new Map(); // userId -> socketId
 
@@ -39,8 +40,12 @@ const initSocket = (io) => {
       console.warn('Could not auto-join study groups:', err.message);
     }
 
+    const denyRoom = (room) =>
+      socket.emit('error', { message: 'Not authorized to access this room', room });
+
     // Join a chat room
-    socket.on('join_room', (room) => {
+    socket.on('join_room', async (room) => {
+      if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       socket.join(room);
       socket.to(room).emit('user_joined', { user: socket.user, room });
     });
@@ -52,12 +57,15 @@ const initSocket = (io) => {
     });
 
     // Join a study group room explicitly
-    socket.on('join_group', (groupId) => {
-      socket.join(`group:${groupId}`);
+    socket.on('join_group', async (groupId) => {
+      const room = `group:${groupId}`;
+      if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
+      socket.join(room);
     });
 
     // Send chat message
-    socket.on('send_message', async ({ room, content, type = 'text', fileUrl }) => {
+    socket.on('send_message', async ({ room, content, type = 'text', fileUrl } = {}) => {
+      if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       try {
         const message = await Message.create({
           room, sender: socket.user._id, content, type, fileUrl
@@ -70,10 +78,11 @@ const initSocket = (io) => {
     });
 
     // Delete a message via socket
-    socket.on('delete_message', async ({ room, messageId }) => {
+    socket.on('delete_message', async ({ room, messageId } = {}) => {
+      if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       try {
         const msg = await Message.findById(messageId);
-        if (!msg) return;
+        if (!msg || msg.room !== room) return;
         if (!msg.sender.equals(socket.user._id) && socket.user.role !== 'admin') return;
         msg.isDeleted = true;
         msg.content = '🚫 This message was deleted';
@@ -85,7 +94,8 @@ const initSocket = (io) => {
     });
 
     // Mark messages as read
-    socket.on('mark_messages_read', async ({ room }) => {
+    socket.on('mark_messages_read', async ({ room } = {}) => {
+      if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       try {
         const result = await Message.updateMany(
           { room, sender: { $ne: socket.user._id }, readBy: { $ne: socket.user._id } },
@@ -100,7 +110,8 @@ const initSocket = (io) => {
     });
 
     // Typing indicator
-    socket.on('typing', ({ room, isTyping }) => {
+    socket.on('typing', async ({ room, isTyping } = {}) => {
+      if (!(await canAccessRoom(socket.user, room))) return;
       socket.to(room).emit('user_typing', { user: socket.user, isTyping });
     });
 

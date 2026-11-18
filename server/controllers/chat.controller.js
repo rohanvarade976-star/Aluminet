@@ -1,9 +1,13 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
+const { canAccessRoom } = require('../utils/roomAccess');
 
 exports.getRoomMessages = async (req, res) => {
   try {
     const { room } = req.params;
+    if (!(await canAccessRoom(req.user, room))) {
+      return res.status(403).json({ error: 'Not authorized to access this room' });
+    }
     const { page = 1, limit = 50 } = req.query;
     const messages = await Message.find({ room })
       .populate('sender', 'name avatar role')
@@ -24,7 +28,8 @@ exports.getMyRooms = async (req, res) => {
         $match: { 
           $or: [
             { sender: req.user._id },
-            { room: { $regex: userId } }
+            { room: { $regex: `^${userId}_[0-9a-f]{24}$` } },
+            { room: { $regex: `^[0-9a-f]{24}_${userId}$` } }
           ]
         } 
       },
