@@ -5,6 +5,7 @@ import Spinner from '../../components/common/Spinner';
 import { format } from 'date-fns';
 import { CheckCircle, Clock, XCircle, Video, Star, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ROLES } from '../../constants/roles';
 
 const STATUS = {
   pending:   { style: 'badge-warning', icon: Clock },
@@ -56,7 +57,7 @@ export default function MySessions() {
       setSessions(prev => prev.map(s => s._id === id ? { ...s, rating, feedback } : s));
       setRatingSession(null);
       toast.success('Rating submitted!');
-    } catch { toast.error('Failed'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
   };
 
   const handleMarkComplete = async (id) => {
@@ -64,7 +65,19 @@ export default function MySessions() {
       await mentorApi.updateSession(id, { status: 'completed' });
       setSessions(prev => prev.map(s => s._id === id ? { ...s, status: 'completed' } : s));
       toast.success('Session marked as completed');
-    } catch { toast.error('Failed'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
+  };
+
+  // Mentor or mentee can cancel a pending request, or a confirmed session that hasn't started yet
+  const handleCancel = async (session) => {
+    if (!window.confirm(`Cancel the session "${session.title}"? This can't be undone.`)) return;
+    try {
+      await mentorApi.updateSession(session._id, { status: 'cancelled' });
+      setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: 'cancelled' } : s));
+      toast.success('Session cancelled');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to cancel session');
+    }
   };
 
   if (loading) return <Spinner full />;
@@ -101,6 +114,10 @@ export default function MySessions() {
           {filtered.map(session => {
             const st = STATUS[session.status] || STATUS.pending;
             const other = user.role === 'alumni' ? session.mentee : session.mentor;
+            const canCancel = session.status === 'pending'
+              || (session.status === 'confirmed' && new Date(session.scheduledAt) > new Date());
+            const canComplete = session.status === 'confirmed' && user.role === ROLES.ALUMNI;
+            const canRate = session.status === 'completed' && user.role === ROLES.STUDENT && !session.rating;
             return (
               <div key={session._id} className="card p-5 animate-fade-in">
                 <div className="flex items-start gap-4">
@@ -144,16 +161,21 @@ export default function MySessions() {
                 </div>
 
                 {/* Action bar */}
-                {(session.status === 'confirmed' && user.role === 'alumni') || (session.status === 'completed' && user.role === 'student' && !session.rating) ? (
+                {canCancel || canComplete || canRate ? (
                   <div className="flex gap-2 mt-4 pt-4 border-t border-slate-50">
-                    {session.status === 'confirmed' && user.role === 'alumni' && (
+                    {canComplete && (
                       <button onClick={() => handleMarkComplete(session._id)} className="btn-secondary text-sm">
                         <CheckCircle className="w-3.5 h-3.5" /> Mark Complete
                       </button>
                     )}
-                    {session.status === 'completed' && user.role === 'student' && !session.rating && (
+                    {canRate && (
                       <button onClick={() => setRatingSession(session)} className="btn-primary text-sm">
                         <Star className="w-3.5 h-3.5" /> Rate Session
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button onClick={() => handleCancel(session)} className="btn-secondary text-sm text-rose-600">
+                        <XCircle className="w-3.5 h-3.5" /> Cancel
                       </button>
                     )}
                   </div>

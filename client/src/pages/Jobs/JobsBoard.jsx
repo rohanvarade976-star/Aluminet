@@ -5,6 +5,7 @@ import Spinner from '../../components/common/Spinner';
 import { Briefcase, MapPin, Clock, Search, Plus, Bookmark, BookmarkCheck, ExternalLink, Building, Star, X, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { ROLES } from '../../constants/roles';
 
 const TYPE_COLORS = {
   'full-time':  'badge-primary',
@@ -93,6 +94,8 @@ export default function JobsBoard() {
   const [levelFilter, setLevelFilter] = useState('all');
   const [showPost, setShowPost] = useState(false);
   const [savedJobs, setSavedJobs] = useState(new Set());
+  const canPost = [ROLES.ALUMNI, ROLES.ADMIN].includes(user?.role);
+  const canApply = user?.role === ROLES.STUDENT;
 
   const fetchJobs = (params = {}) => {
     setLoading(true);
@@ -125,7 +128,7 @@ export default function JobsBoard() {
           <h1 className="page-title flex items-center gap-2"><Briefcase className="w-6 h-6 text-primary-600" /> Alumni Job Board</h1>
           <p className="page-subtitle">Exclusive opportunities posted by AlumiNet alumni</p>
         </div>
-        {user?.role === 'alumni' && (
+        {canPost && (
           <button onClick={() => setShowPost(true)} className="btn-primary"><Plus className="w-4 h-4" /> Post a Job</button>
         )}
       </div>
@@ -162,7 +165,7 @@ export default function JobsBoard() {
         <div className="card p-14 text-center">
           <Briefcase className="w-12 h-12 text-slate-200 mx-auto mb-3" />
           <p className="font-semibold text-slate-400">No jobs found</p>
-          {user?.role === 'alumni' && <button onClick={() => setShowPost(true)} className="btn-primary mt-4 text-sm">Post the first job</button>}
+          {canPost && <button onClick={() => setShowPost(true)} className="btn-primary mt-4 text-sm">Post the first job</button>}
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
@@ -213,15 +216,17 @@ export default function JobsBoard() {
                     </div>
                   )}
                   <div className="flex gap-2">
-                    {job.applyLink && (
+                    {canApply && job.applyLink && (
                       <a href={job.applyLink} target="_blank" rel="noreferrer" className="btn-secondary text-xs py-1.5 px-3">
                         <ExternalLink className="w-3 h-3" /> Apply
                       </a>
                     )}
-                    <button onClick={() => handleApply(job._id)}
-                      className={`text-xs py-1.5 px-3 rounded-xl font-semibold transition-all border ${isApplied ? 'bg-success-50 text-success-700 border-success-200' : 'btn-primary'}`}>
-                      {isApplied ? '✓ Applied' : 'Apply Now'}
-                    </button>
+                    {canApply && (
+                      <button onClick={() => handleApply(job._id)}
+                        className={`text-xs py-1.5 px-3 rounded-xl font-semibold transition-all border ${isApplied ? 'bg-success-50 text-success-700 border-success-200' : 'btn-primary'}`}>
+                        {isApplied ? '✓ Applied' : 'Apply Now'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

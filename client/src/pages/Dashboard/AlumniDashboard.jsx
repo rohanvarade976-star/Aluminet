@@ -6,6 +6,7 @@ import StatCard from '../../components/common/StatCard';
 import Spinner from '../../components/common/Spinner';
 import { BookOpen, Calendar, CheckCircle, Clock, Plus, Users, Star } from 'lucide-react';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 
 export default function AlumniDashboard() {
   const { user } = useAuthStore();
@@ -20,9 +21,19 @@ export default function AlumniDashboard() {
     ]).finally(() => setLoading(false));
   }, []);
 
+  // Accept (confirmed) or decline (cancelled) a pending request; show the server's error if it refuses
+  const respond = async (session, status, failText) => {
+    try {
+      await mentorApi.updateSession(session._id, { status });
+      setSessions(prev => prev.map(x => x._id === session._id ? { ...x, status } : x));
+    } catch (err) {
+      toast.error(err.response?.data?.error || failText);
+    }
+  };
+
   if (loading) return <Spinner full />;
 
-  const pending   = sessions.filter(s => s.status === 'pending');
+  const pending  = sessions.filter(s => s.status === 'pending');
   const confirmed = sessions.filter(s => s.status === 'confirmed');
   const completed = sessions.filter(s => s.status === 'completed');
   const avgRating = completed.filter(s => s.rating).reduce((a, b, _, arr) => a + b.rating / arr.length, 0);
@@ -73,14 +84,10 @@ export default function AlumniDashboard() {
                 <p className="text-xs text-primary-600 font-medium mt-0.5">{format(new Date(s.scheduledAt), 'MMM d, h:mm a')}</p>
               </div>
               <div className="flex gap-1.5">
-                <button onClick={async () => {
-                  await mentorApi.updateSession(s._id, { status: 'confirmed' });
-                  setSessions(prev => prev.map(x => x._id === s._id ? { ...x, status: 'confirmed' } : x));
-                }} className="text-xs bg-success-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-success-700 font-medium transition-all">Accept</button>
-                <button onClick={async () => {
-                  await mentorApi.updateSession(s._id, { status: 'cancelled' });
-                  setSessions(prev => prev.map(x => x._id === s._id ? { ...x, status: 'cancelled' } : x));
-                }} className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-200 font-medium transition-all">Decline</button>
+                <button onClick={() => respond(s, 'confirmed', 'Failed to accept session')}
+                  className="text-xs bg-success-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-success-700 font-medium transition-all">Accept</button>
+                <button onClick={() => respond(s, 'cancelled', 'Failed to decline session')}
+                  className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-200 font-medium transition-all">Decline</button>
               </div>
             </div>
           ))}

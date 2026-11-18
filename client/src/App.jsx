@@ -36,6 +36,7 @@ import SkillGap from "./pages/AI/SkillGap";
 import InterviewPrep from "./pages/AI/InterviewPrep";
 import Layout from "./components/common/Layout";
 import Spinner from "./components/common/Spinner";
+import { ROLES } from "./constants/roles";
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuthStore();
@@ -90,7 +91,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter />} />
-          <Route path="mentors" element={<FindMentor />} />
+          <Route path="mentors" element={<ProtectedRoute roles={[ROLES.STUDENT]}><FindMentor /></ProtectedRoute>} />
           <Route path="sessions" element={<MySessions />} />
           <Route path="events" element={<EventList />} />
           <Route path="events/create" element={<ProtectedRoute roles={["alumni","admin"]}><CreateEvent /></ProtectedRoute>} />
@@ -101,11 +102,11 @@ export default function App() {
           <Route path="chat/:room" element={<ChatPage />} />
           <Route path="profile/:id" element={<ViewProfile />} />
           <Route path="profile/edit" element={<EditProfile />} />
-          <Route path="ai-jobs" element={<JobRecommendations />} />
-          <Route path="resume" element={<ResumeAnalyzer />} />
-          <Route path="skill-gap" element={<SkillGap />} />
-          <Route path="interview-prep" element={<InterviewPrep />} />
-          <Route path="verify" element={<VerifyMe />} />
+          <Route path="ai-jobs" element={<ProtectedRoute roles={[ROLES.STUDENT]}><JobRecommendations /></ProtectedRoute>} />
+          <Route path="resume" element={<ProtectedRoute roles={[ROLES.STUDENT]}><ResumeAnalyzer /></ProtectedRoute>} />
+          <Route path="skill-gap" element={<ProtectedRoute roles={[ROLES.STUDENT]}><SkillGap /></ProtectedRoute>} />
+          <Route path="interview-prep" element={<ProtectedRoute roles={[ROLES.STUDENT]}><InterviewPrep /></ProtectedRoute>} />
+          <Route path="verify" element={<ProtectedRoute roles={[ROLES.STUDENT, ROLES.ALUMNI]}><VerifyMe /></ProtectedRoute>} />
           <Route path="admin/verify" element={<ProtectedRoute roles={["admin"]}><AdminVerify /></ProtectedRoute>} />
           <Route path="jobs" element={<JobsBoard />} />
           <Route path="study-groups" element={<StudyGroups />} />
@@ -114,7 +115,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-      {user && <ChatBot />}
+      {user && [ROLES.STUDENT, ROLES.ALUMNI].includes(user.role) && <ChatBot />}
     </BrowserRouter>
     </ErrorBoundary>
   );

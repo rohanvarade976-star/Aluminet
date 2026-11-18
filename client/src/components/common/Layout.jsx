@@ -6,7 +6,7 @@ import {
   GraduationCap, LayoutDashboard, Users, Calendar, MessageSquare,
   BookOpen, LogOut, User, Shield, Briefcase, CheckCircle,
   BookMarked, Trophy, ChevronRight, ChevronDown, Bell, Menu, X,
-  Sparkles, Zap, Moon, Sun, Target, Search
+  Sparkles, Zap, Moon, Sun, Target, Search, FileText
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useSocketStore from '../../store/socketStore';
@@ -14,6 +14,7 @@ import useThemeStore from '../../store/themeStore';
 import NotificationBell from './NotificationBell';
 import { getRouteMeta } from '../../utils/routeMeta';
 import toast from 'react-hot-toast';
+import { ROLES } from '../../constants/roles';
 
 const navGroups = {
   student: [
@@ -33,6 +34,7 @@ const navGroups = {
       { to: '/skill-gap',      icon: Target,       label: 'Skill Gap' },
       { to: '/interview-prep', icon: MessageSquare, label: 'Interview Prep' },
       { to: '/ai-jobs',        icon: Sparkles,     label: 'AI Job Match' },
+      { to: '/resume',         icon: FileText,     label: 'Resume Analyzer' },
     ]},
     { label: 'Account', items: [
       { to: '/achievements', icon: Trophy,      label: 'Achievements' },
@@ -112,8 +114,12 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const groups = navGroups[user?.role] || navGroups.student;
   const verifStatus = user?.verificationStatus || 'none';
+  // Already-verified users don't need the "Get Verified" menu item
+  const groups = (navGroups[user?.role] || navGroups.student).map(g => ({
+    ...g,
+    items: g.items.filter(item => !(item.to === '/verify' && verifStatus === 'approved')),
+  }));
   const pageMeta = getRouteMeta(location.pathname);
 
   const Sidebar = () => (
@@ -163,19 +169,21 @@ export default function Layout() {
 
       {/* Grow your network CTA Card (as in reference UI) */}
       <div className="p-3.5 border-t border-slate-800/80">
-        <div className="rounded-2xl bg-gradient-to-br from-blue-950/60 to-slate-900 border border-blue-500/20 p-3.5 text-center mb-3">
-          <div className="w-9 h-9 mx-auto mb-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-            <GraduationCap className="w-4 h-4" />
+        {user?.role === ROLES.STUDENT && (
+          <div className="rounded-2xl bg-gradient-to-br from-blue-950/60 to-slate-900 border border-blue-500/20 p-3.5 text-center mb-3">
+            <div className="w-9 h-9 mx-auto mb-2 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <p className="text-xs font-bold text-white mb-0.5">Grow your network</p>
+            <p className="text-[10px] text-slate-400 mb-2.5">with AlumiNet</p>
+            <NavLink
+              to="/mentors"
+              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all"
+            >
+              <Users className="w-3.5 h-3.5" /> Find Alumni
+            </NavLink>
           </div>
-          <p className="text-xs font-bold text-white mb-0.5">Grow your network</p>
-          <p className="text-[10px] text-slate-400 mb-2.5">with AlumiNet</p>
-          <NavLink
-            to="/mentors"
-            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all"
-          >
-            <Users className="w-3.5 h-3.5" /> Find Alumni
-          </NavLink>
-        </div>
+        )}
 
         {/* User Card */}
         <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/10 mb-2">
@@ -242,26 +250,28 @@ export default function Layout() {
 
         {/* Desktop Header / Topbar (Matching the Reference UI) */}
         <div className="hidden lg:flex items-center justify-between gap-4 px-8 py-3.5 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0 shadow-sm">
-          {/* Search Bar */}
-          <div className="relative max-w-md w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search alumni, jobs, events, discussions..."
-              className="w-full pl-9 pr-14 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  navigate(`/mentors?q=${encodeURIComponent(e.target.value.trim())}`);
-                }
-              }}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-              Ctrl K
-            </span>
-          </div>
+          {/* Search Bar: students only for now (it only searches mentors, which is a student-only page) */}
+          {user?.role === ROLES.STUDENT && (
+            <div className="relative max-w-md w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search alumni, jobs, events, discussions..."
+                className="w-full pl-9 pr-14 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    navigate(`/mentors?q=${encodeURIComponent(e.target.value.trim())}`);
+                  }
+                }}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                Ctrl K
+              </span>
+            </div>
+          )}
 
-          {/* Right Header Items: Notifications & User profile pill */}
-          <div className="flex items-center gap-3">
+          {/* Right Header Items: Notifications & User profile pill (ml-auto keeps them right when the search is hidden) */}
+          <div className="flex items-center gap-3 ml-auto">
             <NotificationBell />
             <button
               type="button"
