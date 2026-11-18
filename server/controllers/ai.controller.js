@@ -7,11 +7,11 @@ const path = require('path');
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
 
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const { PRIVATE_DIR } = require('../utils/uploadPaths');
 
+// Resumes are saved to uploads/private, which is never served statically
 const resumeStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
+  destination: (req, file, cb) => cb(null, PRIVATE_DIR),
   filename: (req, file, cb) => {
     const safe = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
     cb(null, `resume-${Date.now()}-${safe}`);
@@ -109,7 +109,7 @@ ${resumeText || 'No text could be extracted from this file.'}` }
     try { fs.unlinkSync(req.file.path); } catch {}
     const saved = await ResumeAnalysis.findOneAndUpdate(
       { user: req.user._id },
-      { user: req.user._id, resumeUrl: req.file.filename, resumeText, analysis },
+      { user: req.user._id, resumeUrl: `private/${req.file.filename}`, resumeText, analysis },
       { upsert: true, new: true }
     );
     res.json({ analysis: saved.analysis });

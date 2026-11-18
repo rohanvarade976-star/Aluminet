@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const connectDB = require('./config/db');
+const { AVATARS_DIR } = require('./utils/uploadPaths');
 const { isEmailConfigured } = require('./services/emailService');
 const { initSocket } = require('./socket/socketHandler');
 const { decayFraudScores } = require('./middleware/fraud.middleware');
@@ -44,7 +45,9 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Only avatars are public. Verification documents and resumes live in uploads/private
+// and are never served statically.
+app.use('/uploads/avatars', express.static(AVATARS_DIR));
 
 // Global rate limiter (more permissive — auth routes have their own strict limiter)
 app.set('trust proxy', 1);

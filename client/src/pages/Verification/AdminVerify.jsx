@@ -1,11 +1,28 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Eye, Shield, Clock, FileText, Users } from 'lucide-react';
 import api from '../../api/axiosInstance';
-import { assetUrl } from '../../api/config';
 import PageHeader from '../../components/common/PageHeader';
 import TabBar from '../../components/common/TabBar';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+
+// Documents are private: a plain link can't send the auth token, so fetch the file
+// with the token and open it as a blob URL in a new tab.
+async function openDocument(verifId, field) {
+  // Open the tab synchronously (inside the click) so popup blockers allow it
+  const tab = window.open('', '_blank');
+  if (tab) tab.opener = null;
+  try {
+    const { data } = await api.get(`/verification/${verifId}/file/${field}`, { responseType: 'blob' });
+    const url = URL.createObjectURL(data);
+    if (tab) tab.location.href = url;
+    else window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+  } catch {
+    if (tab) tab.close();
+    toast.error('Could not open document');
+  }
+}
 
 function ReviewModal({ verif, onClose, onDone }) {
   const [status, setStatus] = useState('approved');
@@ -35,19 +52,19 @@ function ReviewModal({ verif, onClose, onDone }) {
         <div className="space-y-2 mb-4">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Documents</p>
           {verif.collegeIdUrl && (
-            <a href={assetUrl(verif.collegeIdUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
+            <button type="button" onClick={() => openDocument(verif._id, 'collegeId')} className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
               <FileText className="w-4 h-4 flex-shrink-0" /> College ID Card
-            </a>
+            </button>
           )}
           {verif.degreeUrl && (
-            <a href={assetUrl(verif.degreeUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
+            <button type="button" onClick={() => openDocument(verif._id, 'degree')} className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
               <FileText className="w-4 h-4 flex-shrink-0" /> Degree Certificate
-            </a>
+            </button>
           )}
           {verif.offerLetterUrl && (
-            <a href={assetUrl(verif.offerLetterUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
+            <button type="button" onClick={() => openDocument(verif._id, 'offerLetter')} className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">
               <FileText className="w-4 h-4 flex-shrink-0" /> Offer Letter
-            </a>
+            </button>
           )}
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">

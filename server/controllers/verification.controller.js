@@ -3,14 +3,12 @@ const User = require('../models/User');
 const { sendEmail } = require('../services/emailService');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const mongoose = require('mongoose');
+const { PRIVATE_DIR } = require('../utils/uploadPaths');
 
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-// multer v2 API
+// multer v2 API. Documents are saved to uploads/private, which is never served statically.
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
+  destination: (req, file, cb) => cb(null, PRIVATE_DIR),
   filename: (req, file, cb) => {
     const safe = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
     cb(null, `${Date.now()}-${safe}`);
@@ -36,9 +34,10 @@ exports.submitVerification = async (req, res) => {
     const files = req.files || {};
     const updateData = { user: req.user._id, role: user.role, status: 'pending' };
 
-    if (files.collegeId?.[0]) updateData.collegeIdUrl = `/uploads/${files.collegeId[0].filename}`;
-    if (files.degree?.[0]) updateData.degreeUrl = `/uploads/${files.degree[0].filename}`;
-    if (files.offerLetter?.[0]) updateData.offerLetterUrl = `/uploads/${files.offerLetter[0].filename}`;
+    // Stored relative to server/uploads; fetched through GET /api/verification/:id/file/:field
+    if (files.collegeId?.[0]) updateData.collegeIdUrl = `private/${files.collegeId[0].filename}`;
+    if (files.degree?.[0]) updateData.degreeUrl = `private/${files.degree[0].filename}`;
+    if (files.offerLetter?.[0]) updateData.offerLetterUrl = `private/${files.offerLetter[0].filename}`;
 
     const verif = await VerificationRequest.findOneAndUpdate(
       { user: req.user._id }, updateData, { upsert: true, new: true }
@@ -54,6 +53,46 @@ exports.getMyVerification = async (req, res) => {
   try {
     const verif = await VerificationRequest.findOne({ user: req.user._id });
     res.json({ verif });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// URL field in VerificationRequest for each :field accepted by the download route
+const FILE_FIELDS = { collegeId: 'collegeIdUrl', degree: 'degreeUrl', offerLetter: 'offerLetterUrl' };
+// Content types we are willing to serve inline; anything else is forced to download
+const SAFE_TYPES = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
+
+// Download a verification document: admins and the user who uploaded it only
+exports.getVerificationFile = async (req, res) => {
+  try {
+    const urlField = FILE_FIELDS[req.params.field];
+    if (!urlField || !mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const verif = await VerificationRequest.findById(req.params.id).select(`user ${urlField}`);
+    if (!verif) return res.status(404).json({ error: 'File not found' });
+
+    const isOwner = verif.user.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to view this document' });
+    }
+
+    const stored = verif[urlField];
+    if (!stored) return res.status(404).json({ error: 'File not found' });
+
+    // basename() keeps the lookup inside PRIVATE_DIR whatever is stored (also handles legacy "/uploads/<name>")
+    const filePath = path.join(PRIVATE_DIR, path.basename(stored));
+    const type = SAFE_TYPES[path.extname(filePath).toLowerCase()];
+    res.set({
+      'Content-Type': type || 'application/octet-stream',
+      'Content-Disposition': type ? 'inline' : 'attachment',
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.sendFile(filePath, { dotfiles: 'deny' }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'File not found' });
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
