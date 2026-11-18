@@ -1,5 +1,6 @@
 const FraudLog = require('../models/FraudLog');
 const User = require('../models/User');
+const SystemState = require('../models/SystemState');
 
 // ── Tunables ─────────────────────────────────────────────────────
 const WRITE_WINDOW_MS = 60 * 1000;          // sliding window for write requests
@@ -41,12 +42,13 @@ const tooMany = (res, blockedUntil, message) => {
 const logFraud = (entry) => FraudLog.create(entry).catch((err) => console.error('FraudLog error:', err.message));
 
 // ── Write-request tracking ───────────────────────────────────────
-// Use after `protect`. Reads pass untouched. For POST/PUT/PATCH/DELETE:
+// Use after `protect`. For POST/PUT/PATCH/DELETE (and, with trackAllMethods, any method):
 //   - flagged non-admin users get 403
-//   - more than writeLimit() writes in 60s: FraudLog, +30 fraudScore (flag above 80), 429
-const fraudDetect = async (req, res, next) => {
+//   - more than writeLimit() tracked requests in 60s: FraudLog, +30 fraudScore (flag above 80), 429
+// Other requests (plain reads) pass untouched.
+const makeFraudDetect = (trackAllMethods) => async (req, res, next) => {
   try {
-    if (!WRITE_METHODS.has(req.method) || !req.user) return next();
+    if (!req.user || (!trackAllMethods && !WRITE_METHODS.has(req.method))) return next();
 
     // req.user was loaded by protect, so this needs no extra query
     if (req.user.isFlagged && req.user.role !== 'admin') {
@@ -76,7 +78,7 @@ const fraudDetect = async (req, res, next) => {
       user: req.user._id,
       ip: req.ip,
       action: `${req.method} ${req.baseUrl}${req.path}`,
-      reason: `Write rate limit exceeded (${count} writes in 60s, limit ${limit})`,
+      reason: `${WRITE_METHODS.has(req.method) ? 'Write' : 'Costly (AI)'} rate limit exceeded (${count} tracked requests in 60s, limit ${limit})`,
       score: WRITE_PENALTY,
       meta: { limit, windowSeconds: WRITE_WINDOW_MS / 1000 },
     });
@@ -93,6 +95,11 @@ const fraudDetect = async (req, res, next) => {
     next(); // never block legitimate users because of a bug in the detector
   }
 };
+// Writes only (POST/PUT/PATCH/DELETE)
+const fraudDetect = makeFraudDetect(false);
+// Same tracking and flag check for GET endpoints that cost money per call (LLM requests).
+// Shares the per-user counter with writes.
+const fraudDetectCostly = makeFraudDetect(true);
 
 // ── Failed-login tracking ────────────────────────────────────────
 const loginKey = (req, email) => `${req.ip}|${String(email || '').toLowerCase().trim()}`;
@@ -134,7 +141,7 @@ const recordLoginFailure = async (req, email, userId) => {
 const clearLoginFailures = (req, email) => { loginState.delete(loginKey(req, email)); };
 
 // ── Score decay ──────────────────────────────────────────────────
-// Runs every 24h (see server.js): -10 per run. A score of 80 or below is unflagged.
+// -10 per run. A score of 80 or below is unflagged. Returns true on success.
 const decayFraudScores = async () => {
   try {
     const flaggedUsers = await User.find({ fraudScore: { $gt: 0 } }).select('_id fraudScore');
@@ -146,9 +153,49 @@ const decayFraudScores = async () => {
       });
     }));
     console.log(`🛡️ Fraud score decay: ${flaggedUsers.length} users updated`);
+    return true;
   } catch (err) {
     console.error('Fraud decay error:', err.message);
+    return false;
   }
 };
 
-module.exports = { fraudDetect, loginGuard, recordLoginFailure, clearLoginFailures, decayFraudScores };
+const DECAY_KEY = 'fraudDecay';
+const DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+// Run the decay only if 24h have passed since the last run. The last run time lives in MongoDB
+// (SystemState), so restarting the server does not decay again. The run is claimed with an atomic
+// update first, so two restarts or two instances can't both decay. Safe to call often.
+const runDecayIfDue = async () => {
+  try {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - DECAY_INTERVAL_MS);
+    let previous = await SystemState.findOneAndUpdate(
+      { key: DECAY_KEY, lastRunAt: { $lte: cutoff } },
+      { $set: { lastRunAt: now } },
+      { new: false }
+    );
+    if (!previous) {
+      // Not claimed: either it has never run (create the record and run) or it ran less than 24h ago
+      try {
+        await SystemState.create({ key: DECAY_KEY, lastRunAt: now });
+        previous = { lastRunAt: null };
+      } catch (err) {
+        if (err.code === 11000) return; // record exists and the last run is recent
+        throw err;
+      }
+    }
+    if (!(await decayFraudScores())) {
+      // Failed: give the run back so it is retried at the next check
+      if (previous.lastRunAt) await SystemState.updateOne({ key: DECAY_KEY }, { $set: { lastRunAt: previous.lastRunAt } });
+      else await SystemState.deleteOne({ key: DECAY_KEY });
+    }
+  } catch (err) {
+    console.error('Fraud decay scheduling error:', err.message);
+  }
+};
+
+module.exports = {
+  fraudDetect, fraudDetectCostly, loginGuard, recordLoginFailure, clearLoginFailures,
+  decayFraudScores, runDecayIfDue,
+};

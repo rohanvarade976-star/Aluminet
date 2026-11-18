@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const { protect } = require('../middleware/auth.middleware');
-const { fraudDetect } = require('../middleware/fraud.middleware');
+const { fraudDetect, fraudDetectCostly } = require('../middleware/fraud.middleware');
 const { chat, analyzeResume, getResumeAnalysis, getJobRecommendations, getForumSuggestion, getSkillGap, getInterviewQuestions, resumeUpload } = require('../controllers/ai.controller');
 router.post('/chat', protect, fraudDetect, chat);
 router.post('/resume/analyze', protect, fraudDetect, resumeUpload.single('resume'), analyzeResume);
 router.get('/resume', protect, getResumeAnalysis);
-router.get('/jobs', protect, getJobRecommendations);
-router.get('/forum/:postId/suggest', protect, getForumSuggestion);
-router.get('/skill-gap', protect, getSkillGap);
-router.get('/interview-questions', protect, getInterviewQuestions);
+router.get('/jobs', protect, fraudDetectCostly, getJobRecommendations);
+router.get('/forum/:postId/suggest', protect, fraudDetectCostly, getForumSuggestion);
+router.get('/skill-gap', protect, fraudDetectCostly, getSkillGap);
+router.get('/interview-questions', protect, fraudDetectCostly, getInterviewQuestions);
 module.exports = router;

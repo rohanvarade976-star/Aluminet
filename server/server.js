@@ -12,7 +12,7 @@ const connectDB = require('./config/db');
 const { AVATARS_DIR } = require('./utils/uploadPaths');
 const { isEmailConfigured } = require('./services/emailService');
 const { initSocket } = require('./socket/socketHandler');
-const { decayFraudScores } = require('./middleware/fraud.middleware');
+const { runDecayIfDue } = require('./middleware/fraud.middleware');
 
 // Routes
 const authRoutes         = require('./routes/auth.routes');
@@ -89,10 +89,10 @@ app.use((err, req, res, next) => {
 
 initSocket(io);
 
-// Scheduled fraud score decay — runs every 24 hours
-setInterval(decayFraudScores, 24 * 60 * 60 * 1000);
-// Also run once on startup (after DB is likely ready)
-setTimeout(decayFraudScores, 10000);
+// Fraud score decay: runs at most once per 24 hours. The last run time is stored in MongoDB,
+// so restarting the server doesn't decay again. Check shortly after startup (DB ready), then hourly.
+setTimeout(runDecayIfDue, 10000);
+setInterval(runDecayIfDue, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

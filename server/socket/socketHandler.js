@@ -4,6 +4,8 @@ const User = require('../models/User');
 const StudyGroup = require('../models/StudyGroup');
 const { canAccessRoom } = require('../utils/roomAccess');
 
+const FLAG_RECHECK_MS = 60 * 1000; // how long a socket may trust its cached isFlagged value
+
 const onlineUsers = new Map(); // userId -> socketId
 
 const initSocket = (io) => {
@@ -13,9 +15,13 @@ const initSocket = (io) => {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('Authentication error'));
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('name avatar role');
+      const user = await User.findById(decoded.id).select('name avatar role isFlagged');
       if (!user) return next(new Error('User not found'));
-      socket.user = user;
+      // socket.user is sent to other users in user_joined / user_typing events, so it must stay
+      // public-safe. The flag is kept separately on socket.flag (re-checked from the DB, see below).
+      const { isFlagged, ...publicUser } = user.toObject();
+      socket.user = publicUser;
+      socket.flag = { value: !!isFlagged, checkedAt: Date.now() };
       next();
     } catch (err) {
       next(new Error('Authentication error'));
@@ -43,6 +49,25 @@ const initSocket = (io) => {
     const denyRoom = (room) =>
       socket.emit('error', { message: 'Not authorized to access this room', room });
 
+    // Flagged non-admin users can't write (send / delete / typing). The flag is loaded at connect
+    // and re-read from the database at most once a minute per socket, not on every event.
+    const isRestricted = async () => {
+      if (socket.user.role === 'admin') return false;
+      const flag = socket.flag;
+      if (Date.now() - flag.checkedAt > FLAG_RECHECK_MS) {
+        flag.checkedAt = Date.now(); // set first so concurrent events don't all re-query
+        try {
+          const fresh = await User.findById(socket.user._id).select('isFlagged');
+          flag.value = !!fresh?.isFlagged;
+        } catch (err) {
+          console.warn('Flag re-check failed, keeping cached value:', err.message);
+        }
+      }
+      return flag.value;
+    };
+    const denyRestricted = () =>
+      socket.emit('error', { message: 'Your account is restricted. Contact an admin.' });
+
     // Join a chat room
     socket.on('join_room', async (room) => {
       if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
@@ -65,6 +90,7 @@ const initSocket = (io) => {
 
     // Send chat message
     socket.on('send_message', async ({ room, content, type = 'text', fileUrl } = {}) => {
+      if (await isRestricted()) return denyRestricted();
       if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       try {
         const message = await Message.create({
@@ -79,6 +105,7 @@ const initSocket = (io) => {
 
     // Delete a message via socket
     socket.on('delete_message', async ({ room, messageId } = {}) => {
+      if (await isRestricted()) return denyRestricted();
       if (!(await canAccessRoom(socket.user, room))) return denyRoom(room);
       try {
         const msg = await Message.findById(messageId);
@@ -111,6 +138,7 @@ const initSocket = (io) => {
 
     // Typing indicator
     socket.on('typing', async ({ room, isTyping } = {}) => {
+      if (await isRestricted()) return denyRestricted();
       if (!(await canAccessRoom(socket.user, room))) return;
       socket.to(room).emit('user_typing', { user: socket.user, isTyping });
     });
