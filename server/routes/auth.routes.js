@@ -3,9 +3,11 @@ const rateLimit = require('express-rate-limit');
 const { register, login, refreshToken, verifyEmail, logout, getMe, forgotPassword, resetPassword } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 
+// Strict in production, relaxed elsewhere; override with AUTH_RATE_LIMIT_MAX
+const isProd = process.env.NODE_ENV === 'production';
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10) || (isProd ? 10 : 1000),
   message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
 });
 

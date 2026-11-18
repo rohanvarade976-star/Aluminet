@@ -48,7 +48,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Global rate limiter (more permissive — auth routes have their own strict limiter)
 app.set('trust proxy', 1);
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10000 });
+// Strict in production, relaxed elsewhere; override with API_RATE_LIMIT_MAX
+const isProd = process.env.NODE_ENV === 'production';
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.API_RATE_LIMIT_MAX, 10) || (isProd ? 300 : 10000)
+});
 app.use('/api/', limiter);
 
 // Attach socket.io to every request
