@@ -18,7 +18,7 @@ We appreciate your interest in contributing to AlumiNet. This guide will help yo
    git remote add upstream https://github.com/rohanvarade976-star/Aluminet.git
    ```
 
-4. **Follow the SETUP_GUIDE.md** to configure your environment
+4. **Follow the docs/SETUP.md** to configure your environment
 
 ## Development Workflow
 
@@ -120,13 +120,13 @@ npm run build
 
 - Update README.md if adding new features
 - Document complex functions with comments
-- Update SETUP_GUIDE.md if changing setup process
+- Update docs/SETUP.md if changing setup process
 - Add examples for new features
 
 ## Need Help?
 
 - Check existing issues and discussions
-- Read SETUP_GUIDE.md for setup help
+- Read docs/SETUP.md for setup help
 - Read SECURITY.md for security questions
 - Create a GitHub issue if stuck
 - Ask maintainers for clarification

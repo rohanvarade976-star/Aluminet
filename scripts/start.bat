@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0.."
 echo Starting AlumiNet...
 echo.
 echo  Backend  -> http://localhost:5000

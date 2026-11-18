@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0.."
 echo ============================================
 echo    AlumiNet - Auto Setup Script
 echo ============================================
@@ -24,7 +25,7 @@ echo  File location: server\.env
 echo ============================================
 echo.
 echo  After setting up .env, run:
-echo    seed.bat   (to add demo data)
-echo    start.bat  (to run the app)
+echo    scripts\seed.bat   (to add demo data)
+echo    scripts\start.bat  (to run the app)
 echo.
 pause

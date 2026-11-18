@@ -69,7 +69,7 @@ app.use('/api/study-groups',  studyGroupRoutes);
 app.use('/api/achievements',  achievementRoutes);
 
 app.get('/api/health', (req, res) =>
-  res.json({ status: 'AlumiNet v4 running 🚀', ai: 'Groq (llama-3.3-70b-versatile)', timestamp: new Date() })
+  res.json({ status: 'AlumiNet v4 running 🚀', ai: 'Groq (qwen/qwen3.8-27b)', timestamp: new Date() })
 );
 
 // Global error handler
