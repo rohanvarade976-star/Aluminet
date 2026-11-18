@@ -169,7 +169,7 @@ exports.logout = async (req, res) => {
 
 // Get current user
 exports.getMe = async (req, res) => {
-  res.json({ user: req.user });
+  res.json({ user: req.user.toSafeObject() });
 };
 
 // Forgot password — send reset link

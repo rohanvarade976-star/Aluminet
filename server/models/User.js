@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { SECRET_USER_FIELDS, OWNER_HIDDEN_FIELDS } = require('../utils/userFields');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
@@ -43,10 +44,8 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 userSchema.methods.toSafeObject = function () {
   const obj = this.toObject();
-  delete obj.password;
-  delete obj.refreshToken;
-  delete obj.emailVerifyToken;
-  delete obj.emailVerifyExpires;
+  // Safe to send to the owner: no secrets and no moderation fields
+  [...SECRET_USER_FIELDS, ...OWNER_HIDDEN_FIELDS].forEach((f) => delete obj[f]);
   return obj;
 };
 

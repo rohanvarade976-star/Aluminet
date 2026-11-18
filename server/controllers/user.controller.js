@@ -1,13 +1,14 @@
 const User = require('../models/User');
 const { awardAchievement } = require('./achievements.controller');
-const { PUBLIC_USER_SELECT, FULL_USER_SELECT } = require('../utils/userFields');
+const { PUBLIC_USER_SELECT, FULL_USER_SELECT, OWNER_USER_SELECT } = require('../utils/userFields');
 
 exports.getProfile = async (req, res) => {
   try {
-    // Owner and admins get the full profile (minus secrets); everyone else only public fields
-    const canSeeFull = req.user._id.toString() === req.params.id || req.user.role === 'admin';
+    // Admins: everything except secrets. Owner: that minus moderation fields. Others: public fields only.
+    const isAdmin = req.user.role === 'admin';
+    const isOwner = req.user._id.toString() === req.params.id;
     const user = await User.findById(req.params.id)
-      .select(canSeeFull ? FULL_USER_SELECT : PUBLIC_USER_SELECT);
+      .select(isAdmin ? FULL_USER_SELECT : isOwner ? OWNER_USER_SELECT : PUBLIC_USER_SELECT);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
   } catch (err) {
@@ -24,7 +25,7 @@ exports.updateProfile = async (req, res) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     });
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true })
-      .select(FULL_USER_SELECT);
+      .select(OWNER_USER_SELECT);
 
     // Award profile_complete if all key fields are filled
     const updated = await User.findById(req.user._id);
@@ -51,7 +52,7 @@ exports.uploadAvatar = async (req, res) => {
       req.user._id,
       { avatar: avatarUrl },
       { new: true }
-    ).select(FULL_USER_SELECT);
+    ).select(OWNER_USER_SELECT);
 
     res.json({ message: 'Avatar updated successfully', user, avatarUrl });
   } catch (err) {
