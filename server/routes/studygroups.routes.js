@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const { protect } = require('../middleware/auth.middleware');
+const { fraudDetect } = require('../middleware/fraud.middleware');
 const { createGroup, getGroups, getMyGroups, joinGroup, sendMessage, getGroup } = require('../controllers/studygroups.controller');
 router.get('/', protect, getGroups);
 router.get('/mine', protect, getMyGroups);
 router.get('/:id', protect, getGroup);
-router.post('/', protect, createGroup);
-router.post('/:id/join', protect, joinGroup);
-router.post('/:id/messages', protect, sendMessage);
+router.post('/', protect, fraudDetect, createGroup);
+router.post('/:id/join', protect, fraudDetect, joinGroup);
+router.post('/:id/messages', protect, fraudDetect, sendMessage);
 module.exports = router;

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { sendEmail, isEmailConfigured } = require('../services/emailService');
 const { awardAchievement } = require('./achievements.controller');
+const { recordLoginFailure, clearLoginFailures } = require('../middleware/fraud.middleware');
 
 // Guard: crash on startup if JWT secrets are not set
 if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
@@ -85,6 +86,15 @@ exports.register = async (req, res) => {
   }
 };
 
+// Answer a failed login: 401, or 429 when this failure triggers the IP + email lockout
+const loginFailed = async (req, res, email, userId) => {
+  if (await recordLoginFailure(req, email, userId)) {
+    res.set('Retry-After', '900');
+    return res.status(429).json({ error: 'Too many failed login attempts. Try again later.' });
+  }
+  return res.status(401).json({ error: 'Invalid credentials' });
+};
+
 // Login
 exports.login = async (req, res) => {
   try {
@@ -94,11 +104,12 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) return loginFailed(req, res, email);
     if (!user.isActive) return res.status(401).json({ error: 'Account deactivated. Contact admin.' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!isMatch) return loginFailed(req, res, email, user._id);
+    clearLoginFailures(req, email);
 
     const { accessToken, refreshToken } = generateTokens(user._id);
     await User.findByIdAndUpdate(user._id, {
