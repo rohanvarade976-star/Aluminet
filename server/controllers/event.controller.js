@@ -3,6 +3,9 @@ const { awardAchievement } = require('./achievements.controller');
 const { sendEmail } = require('../services/emailService');
 const User = require('../models/User');
 
+// The only fields updateEvent accepts (host, speakers and attendees can never be changed this way)
+const UPDATABLE_EVENT_FIELDS = ['title', 'description', 'type', 'scheduledAt', 'duration', 'meetLink', 'maxAttendees', 'tags', 'isPublished'];
+
 exports.createEvent = async (req, res) => {
   try {
     const { title, description, type, scheduledAt, maxAttendees, meetLink, bannerUrl, tags, isPublished } = req.body;
@@ -87,11 +90,27 @@ exports.updateEvent = async (req, res) => {
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (!event.host.equals(req.user._id) && req.user.role !== 'admin') return res.status(403).json({ error: 'Not authorized' });
 
-    Object.assign(event, req.body);
+    // Whitelist: never host, speakers, attendees (or status/banner). Other fields in the body are ignored.
+    const updates = {};
+    UPDATABLE_EVENT_FIELDS.forEach((key) => { if (req.body[key] !== undefined) updates[key] = req.body[key]; });
+
+    if (updates.maxAttendees !== undefined) {
+      const max = Number(updates.maxAttendees);
+      if (!Number.isInteger(max) || max < 1) {
+        return res.status(400).json({ error: 'maxAttendees must be a whole number of at least 1' });
+      }
+      if (max < event.attendees.length) {
+        return res.status(400).json({ error: `maxAttendees cannot be lower than the current number of attendees (${event.attendees.length})` });
+      }
+      updates.maxAttendees = max;
+    }
+
+    Object.assign(event, updates);
     await event.save();
     res.json({ event });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const invalid = err.name === 'ValidationError' || err.name === 'CastError';
+    res.status(invalid ? 400 : 500).json({ error: err.message });
   }
 };
 

@@ -5,7 +5,7 @@ const { createJob, getJobs, getJob, applyJob, saveJob, deleteJob } = require('..
 router.get('/', protect, getJobs);
 router.get('/:id', protect, getJob);
 router.post('/', protect, fraudDetect, authorize('alumni','admin'), createJob);
-router.post('/:id/apply', protect, fraudDetect, applyJob);
+router.post('/:id/apply', protect, fraudDetect, authorize('student'), applyJob);
 router.post('/:id/save', protect, fraudDetect, saveJob);
 router.delete('/:id', protect, fraudDetect, deleteJob);
 module.exports = router;

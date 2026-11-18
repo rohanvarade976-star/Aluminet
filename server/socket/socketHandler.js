@@ -138,7 +138,7 @@ const initSocket = (io) => {
 
     // Typing indicator
     socket.on('typing', async ({ room, isTyping } = {}) => {
-      if (await isRestricted()) return denyRestricted();
+      if (await isRestricted()) return; // silent: no error event for typing (it fires on every keystroke)
       if (!(await canAccessRoom(socket.user, room))) return;
       socket.to(room).emit('user_typing', { user: socket.user, isTyping });
     });

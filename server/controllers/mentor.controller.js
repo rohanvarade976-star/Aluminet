@@ -9,7 +9,8 @@ const { createNotification } = require('./notification.controller');
 exports.getMatches = async (req, res) => {
   try {
     const student = await User.findById(req.user._id);
-    const mentors = await User.find({ role: 'alumni', isActive: true, isFlagged: false })
+    // Only verified alumni can be mentors
+    const mentors = await User.find({ role: 'alumni', verificationStatus: 'approved', isActive: true, isFlagged: false })
       .select('name avatar department currentCompany currentRole skills interests bio graduationYear location');
 
     let matches = matchMentors(student, mentors);
@@ -25,7 +26,8 @@ exports.getMatches = async (req, res) => {
 exports.getAllMentors = async (req, res) => {
   try {
     const { skills, department, page = 1, limit = 12 } = req.query;
-    const filter = { role: 'alumni', isActive: true, isFlagged: false };
+    // Only verified alumni can be mentors
+    const filter = { role: 'alumni', verificationStatus: 'approved', isActive: true, isFlagged: false };
     if (skills) filter.skills = { $in: skills.split(',') };
     if (department) filter.department = department;
 
@@ -45,7 +47,10 @@ exports.bookSession = async (req, res) => {
   try {
     const { mentorId, title, description, scheduledAt, duration } = req.body;
     const mentor = await User.findById(mentorId);
-    if (!mentor || mentor.role !== 'alumni') return res.status(404).json({ error: 'Mentor not found' });
+    // Only verified alumni can be booked as mentors
+    if (!mentor || mentor.role !== 'alumni' || mentor.verificationStatus !== 'approved') {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
 
     const session = await MentorSession.create({
       mentor: mentorId, mentee: req.user._id,
@@ -95,24 +100,69 @@ exports.getMySessions = async (req, res) => {
   }
 };
 
-// Update session status
+const SESSION_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
+
+// Update a session. Who may change what:
+//   mentor: status pending->confirmed, confirmed->completed; meetLink, notes
+//   mentor or mentee: cancel a pending request, or a confirmed session that hasn't started yet
+//   mentee: rating (1-5, once, only after completed), feedback
+// Anything else is rejected with 403; a rating before completion is a 400.
 exports.updateSession = async (req, res) => {
   try {
     const { status, meetLink, notes, rating, feedback } = req.body;
     const session = await MentorSession.findById(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    const isInvolved = session.mentor.equals(req.user._id) || session.mentee.equals(req.user._id);
-    if (!isInvolved) return res.status(403).json({ error: 'Not authorized' });
+    const isMentor = session.mentor.equals(req.user._id);
+    const isMentee = session.mentee.equals(req.user._id);
+    if (!isMentor && !isMentee) return res.status(403).json({ error: 'Not authorized' });
+    const forbid = (error) => res.status(403).json({ error });
 
-    if (status === 'completed' && new Date(session.scheduledAt) > new Date()) {
-      return res.status(400).json({ error: 'Cannot mark as complete before the scheduled time' });
+    // Fields owned by one side
+    if (!isMentor && (meetLink !== undefined || notes !== undefined)) {
+      return forbid('Only the mentor can add a meeting link or notes');
+    }
+    if (!isMentee && (rating !== undefined || feedback !== undefined)) {
+      return forbid('Only the mentee can rate a session or leave feedback');
     }
 
-    if (status) session.status = status;
+    // Status changes
+    if (status !== undefined) {
+      if (!SESSION_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+      const from = session.status;
+      // Either side may cancel: a pending request, or a confirmed session that hasn't started yet
+      const cancel = status === 'cancelled' && (from === 'pending' || from === 'confirmed');
+      const allowed = cancel || (isMentor
+        && ((status === 'confirmed' && from === 'pending') || (status === 'completed' && from === 'confirmed')));
+      if (!allowed) return forbid(`You cannot change this session from ${from} to ${status}`);
+      if (cancel && from === 'confirmed' && new Date(session.scheduledAt) <= new Date()) {
+        return res.status(400).json({ error: 'Cannot cancel a session that has already started' });
+      }
+      if (status === 'completed' && new Date(session.scheduledAt) > new Date()) {
+        return res.status(400).json({ error: 'Cannot mark as complete before the scheduled time' });
+      }
+    }
+
+    // Rating and feedback (mentee only, after the session is completed)
+    if (rating !== undefined || feedback !== undefined) {
+      if (session.status !== 'completed') {
+        return res.status(400).json({ error: 'You can only rate a session after it is completed' });
+      }
+      if (rating !== undefined) {
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return res.status(400).json({ error: 'Rating must be a whole number from 1 to 5' });
+        }
+        if (session.rating) return res.status(400).json({ error: 'This session has already been rated' });
+      }
+      if (feedback !== undefined && (typeof feedback !== 'string' || feedback.length > 1000)) {
+        return res.status(400).json({ error: 'Feedback must be text of at most 1000 characters' });
+      }
+    }
+
+    if (status !== undefined) session.status = status;
     if (meetLink) session.meetLink = meetLink;
     if (notes) session.notes = notes;
-    if (rating) session.rating = rating;
+    if (rating !== undefined) session.rating = rating;
     if (feedback) session.feedback = feedback;
     await session.save();
 
