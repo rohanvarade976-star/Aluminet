@@ -88,7 +88,7 @@ setTimeout(decayFraudScores, 10000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 AlumiNet v4 server on port ${PORT} | AI: Groq llama-3.3-70b-versatile`);
+  console.log(`🚀 AlumiNet v4 server on port ${PORT} | AI: Groq qwen/qwen3.8-27b`);
   console.log(isEmailConfigured()
     ? '📧 Email: SMTP configured'
     : '⚠️  Email: NOT configured — set EMAIL_USER & EMAIL_PASS in server/.env (forgot-password will show dev link only)');
